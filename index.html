@@ -359,7 +359,7 @@
 
     </div>
 
-    <script>
+   <script>
         const { createApp, ref, computed, onMounted } = Vue;
         // 🟢 URL เดิมของคุณ
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDL_PJ2Db4E8AczoG1xA0TRfcJSXhIfXw2cEjd2RhGsenFFWdEXGC382kUv3wopiPS/exec'; 
@@ -386,7 +386,6 @@
                 const transactionForm = ref({ id: null, description: '', amount: '', type: 'expense', target_color: 'purple', confirm_password: '' });
                 const profileForm = ref({ full_name: '', new_password: '' });
 
-                // ข้อมูลระดับชั้น
                 const levels = [ 
                     { id: 'ปวช. 1', name: 'ปวช. 1' }, 
                     { id: 'ปวช. 2', name: 'ปวช. 2' }, 
@@ -404,7 +403,6 @@
                     yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล']
                 };
 
-                // ฟังก์ชันจัดระเบียบชื่อระดับชั้น
                 const normalizeLevel = (input) => {
                     if (!input) return 'ไม่ระบุ';
                     const clean = input.toString().replace(/\s+/g, '').toLowerCase();
@@ -478,14 +476,12 @@
                         ]);
 
                         let filtered = Array.isArray(resM) ? resM : [];
-
-                        // 🟢 แก้ไข: ตรวจสอบและเติมสีอัตโนมัติหากข้อมูลสีขาดหาย โดยดูจากแผนก
+                        // เติมสีอัตโนมัติหากข้อมูลสีขาดหาย โดยดูจากแผนก
                         filtered = filtered.map(m => {
                             if ((!m.color || m.color.trim() === '') && m.department) {
-                                // วนลูปหาว่าแผนกนี้อยู่สีอะไร
                                 for (const [col, deptList] of Object.entries(departments)) {
                                     if (deptList.includes(m.department)) {
-                                        m.color = col; // เติมสีให้ถูกต้อง
+                                        m.color = col; 
                                         break;
                                     }
                                 }
@@ -514,6 +510,7 @@
                 const filteredMembers = computed(() => {
                     let res = members.value;
                     if (levelFilter.value !== 'all') {
+                        // กรองข้อมูลตามระดับชั้นที่กดเลือก
                         res = res.filter(m => normalizeLevel(m.level) === levelFilter.value);
                     }
                     return res;
@@ -638,9 +635,11 @@
 
                 const importExcel = async (event) => { console.log('Import removed'); };
 
+                 // 🟢 แก้ไขจุดสำคัญ: ใช้ filteredMembers แทน members เพื่อให้การแสดงผลเป็นไปตามตัวกรอง
                  const groupedMembers = computed(() => {
                     const groups = {};
-                    members.value.forEach(m => {
+                    // เปลี่ยนจาก members.value เป็น filteredMembers.value
+                    filteredMembers.value.forEach(m => {
                         const dept = m.department || 'ไม่ระบุ';
                         const levelName = normalizeLevel(m.level); 
                         const roomKey = `${levelName} ห้อง ${m.room}`;
@@ -657,6 +656,7 @@
 
                 const generateSummary = () => {
                     const summary = {};
+                    // ใช้ filteredMembers เพื่อให้สรุปยอดตรงกับที่เห็นบนหน้าจอ
                     filteredMembers.value.forEach(m => {
                         const dept = m.department || 'ไม่ระบุแผนก';
                         const lvlName = normalizeLevel(m.level); 
@@ -735,5 +735,6 @@
 </body>
 
 </html>
+
 
 
