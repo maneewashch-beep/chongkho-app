@@ -361,6 +361,7 @@
 
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
+        // 🟢 URL เดิมของคุณ
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDL_PJ2Db4E8AczoG1xA0TRfcJSXhIfXw2cEjd2RhGsenFFWdEXGC382kUv3wopiPS/exec'; 
 
         createApp({
@@ -381,17 +382,17 @@
                 const adminFilterColor = ref('all');
 
                 const authForm = ref({ username: '', password: '', full_name: '', color: '', role: '' });
-                const memberForm = ref({ id: null, name: '', student_id: '', level: 'voc1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false });
+                const memberForm = ref({ id: null, name: '', student_id: '', level: 'ปวช. 1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false });
                 const transactionForm = ref({ id: null, description: '', amount: '', type: 'expense', target_color: 'purple', confirm_password: '' });
                 const profileForm = ref({ full_name: '', new_password: '' });
 
-                // 🟢 กำหนดข้อมูลระดับชั้น (Reference Data)
+                // 🟢 แก้ไข: ใช้ ID เป็นภาษาไทยเพื่อให้ตรงกับข้อมูลในฐานข้อมูลและ Survey
                 const levels = [ 
-                    { id: 'voc1', name: 'ปวช.1' }, 
-                    { id: 'voc2', name: 'ปวช.2' }, 
-                    { id: 'voc3', name: 'ปวช.3' }, 
-                    { id: 'hvoc1', name: 'ปวส.1' }, 
-                    { id: 'hvoc2', name: 'ปวส.2' } 
+                    { id: 'ปวช. 1', name: 'ปวช. 1' }, 
+                    { id: 'ปวช. 2', name: 'ปวช. 2' }, 
+                    { id: 'ปวช. 3', name: 'ปวช. 3' }, 
+                    { id: 'ปวส. 1', name: 'ปวส. 1' }, 
+                    { id: 'ปวส. 2', name: 'ปวส. 2' } 
                 ];
 
                 const departments = {
@@ -399,8 +400,22 @@
                     skyblue: ['ช่างอิเล็กทรอนิกส์', 'เทคโนโลยีธุรกิจดิจิทัล', 'การโรงแรม'], blue: ['ช่างก่อสร้าง', 'การตลาด'], yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล']
                 };
 
-                // 🟢 ฟังก์ชันช่วยแปลงรหัสเป็นชื่อไทย (Helper Function)
-                const getLevelName = (l) => levels.find(x => x.id === l)?.name || l;
+                // 🟢 ฟังก์ชันใหม่: จัดระเบียบชื่อระดับชั้น (แก้ปัญหา ปวช.1 กับ ปวช. 1 แยกกลุ่มกัน)
+                const normalizeLevel = (input) => {
+                    if (!input) return 'ไม่ระบุ';
+                    // ลบช่องว่างออกทั้งหมดและทำเป็นตัวเล็กเพื่อเปรียบเทียบ
+                    const clean = input.toString().replace(/\s+/g, '').toLowerCase();
+                    
+                    // แปลงค่าต่างๆ ให้เป็น format มาตรฐานเดียวคือ "ปวช. 1" (มีวรรค)
+                    if (clean === 'voc1' || clean === 'ปวช.1') return 'ปวช. 1';
+                    if (clean === 'voc2' || clean === 'ปวช.2') return 'ปวช. 2';
+                    if (clean === 'voc3' || clean === 'ปวช.3') return 'ปวช. 3';
+                    if (clean === 'hvoc1' || clean === 'dip1' || clean === 'ปวส.1') return 'ปวส. 1';
+                    if (clean === 'hvoc2' || clean === 'dip2' || clean === 'ปวส.2') return 'ปวส. 2';
+                    
+                    // ถ้าไม่เข้าเงื่อนไข ให้คืนค่าเดิมกลับไป
+                    return input; 
+                };
 
                 const currentDepartmentOptions = computed(() => {
                     let color = user.value.color;
@@ -408,12 +423,12 @@
                     return departments[color] || [];
                 });
 
-                const getDeptOptions = (c) => departments[c] || [];
                 const canEditMembers = computed(() => ['president', 'vice', 'admin', 'treasurer'].includes(user.value.role));
                 const canAccessBudget = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
                 const canManageBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
                 const canSetBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
                 const canWithdraw = computed(() => ['treasurer', 'admin'].includes(user.value.role));
+                const getDeptOptions = (c) => departments[c] || [];
 
                 const callSheet = async (action, payload = {}) => {
                     try {
@@ -482,9 +497,12 @@
                     }
                 };
 
+                // 🟢 แก้ไข: การกรองข้อมูลใช้ normalizeLevel เพื่อให้ปุ่ม Filter ทำงานถูกต้อง
                 const filteredMembers = computed(() => {
                     let res = members.value;
-                    if (levelFilter.value !== 'all') res = res.filter(m => m.level === levelFilter.value);
+                    if (levelFilter.value !== 'all') {
+                        res = res.filter(m => normalizeLevel(m.level) === levelFilter.value);
+                    }
                     return res;
                 });
 
@@ -498,19 +516,21 @@
                 };
 
                 const openAddMember = () => {
-                    memberForm.value = { id: null, name: '', student_id: '', level: 'voc1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false };
+                    memberForm.value = { id: null, name: '', student_id: '', level: 'ปวช. 1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false };
                     showAddMemberModal.value = true;
                 };
 
                 const openEditMember = (member) => {
                     memberForm.value = { ...member, is_paid: !!member.is_paid, is_received: !!member.is_received }; 
+                    // แปลง level เป็นค่ามาตรฐานก่อนแสดงในฟอร์มแก้ไข
+                    memberForm.value.level = normalizeLevel(member.level);
                     showAddMemberModal.value = true;
                 };
 
                 const deleteMember = async (id) => {
                       const result = await Swal.fire({
                           title: 'ยืนยันการลบ?',
-                          text: "ต้องการลบข้อมูลสมาชิกใช่หรือไม่ การกระทำนี้ไม่สามารถย้อนกลับได้",
+                          text: "ต้องการลบข้อมูลสมาชิกใช่หรือไม่",
                           icon: 'warning',
                           showCancelButton: true,
                           confirmButtonColor: '#d33',
@@ -553,7 +573,7 @@
                 const deleteTransaction = async (id) => {
                       const result = await Swal.fire({
                           title: 'ยืนยันการลบ?',
-                          text: "คุณต้องการลบรายการนี้ใช่หรือไม่",
+                          text: "ต้องการลบรายการนี้ใช่หรือไม่",
                           icon: 'warning',
                           showCancelButton: true,
                           confirmButtonColor: '#d33',
@@ -606,14 +626,14 @@
 
                 const importExcel = async (event) => { console.log('Import removed'); };
 
-                 // 🟢 จุดแก้ไขหลัก: Group สมาชิก โดยแปลงรหัสระดับชั้นเป็นชื่อไทย
+                 // 🟢 แก้ไข: ใช้ normalizeLevel ในการจัดกลุ่ม เพื่อรวม ปวช.1 และ ปวช. 1 เข้าด้วยกัน
                  const groupedMembers = computed(() => {
                     const groups = {};
                     members.value.forEach(m => {
                         const dept = m.department || 'ไม่ระบุ';
                         
-                        // 🟢 แปลง m.level (เช่น 'voc1') เป็นชื่อไทย (เช่น 'ปวช.1')
-                        const levelName = getLevelName(m.level); 
+                        // แปลง level ให้เป็น format มาตรฐานเดียวกัน
+                        const levelName = normalizeLevel(m.level); 
                         const roomKey = `${levelName} ห้อง ${m.room}`;
                         
                         if(!groups[dept]) groups[dept] = {};
@@ -630,7 +650,7 @@
                     const summary = {};
                     filteredMembers.value.forEach(m => {
                         const dept = m.department || 'ไม่ระบุแผนก';
-                        const lvlName = getLevelName(m.level); // ใช้ชื่อไทย
+                        const lvlName = normalizeLevel(m.level); // 🟢 ใช้ normalizeLevel
                         const roomName = m.room ? `ห้อง ${m.room}` : 'ไม่ระบุห้อง';
 
                         if (!summary[dept]) summary[dept] = {};
@@ -697,7 +717,7 @@
                     importExcel, fetchData, generateSummary, loadUsers, adminFilterColor, currentDepartmentOptions,
                     canEditMembers, canAccessBudget, canManageBudget, canSetBudget, canWithdraw, totalIncome, totalExpense,
                     userList, levels, levelFilter, filteredMembers,
-                    getNavbarClass, getColorName, getRoleName, getLevelName, getBadgeClass, formatCurrency,
+                    getNavbarClass, getColorName, getRoleName, getBadgeClass, formatCurrency,
                     showAddMemberModal, showTransactionModal, showEditProfileModal, showProfileMenu, transactionMode 
                 };
             }
@@ -706,3 +726,4 @@
 </body>
 
 </html>
+
