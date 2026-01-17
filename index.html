@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ชงโคเกมส์ - วิทยาลัยเทคนิคพังงา</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); background-image: radial-gradient(circle at 10% 20%, rgb(239, 246, 255) 0%, rgb(255, 241, 242) 90%); }
+        h1, h2, h3, .font-heading { font-family: 'Kanit', sans-serif; }
+        .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .btn-luxury { background: linear-gradient(90deg, #A78BFA, #818CF8); color: white; transition: all 0.3s ease; }
+        .btn-luxury:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(167, 139, 250, 0.3); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .animate-fade-in-up { animation: fadeInUp 0.5s ease-out; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        /* Dynamic Theme Colors */
+        .theme-admin { @apply bg-red-600 text-white; }
+        .theme-purple { @apply bg-purple-500 text-white; }
+        .theme-skyblue { @apply bg-sky-400 text-white; }
+        .theme-blue { @apply bg-blue-600 text-white; }
+        .theme-green { @apply bg-green-500 text-white; }
+        .theme-orange { @apply bg-orange-500 text-white; }
+        .theme-yellow { @apply bg-yellow-400 text-white; }
+        /* Badge Colors */
+        .badge-purple { @apply bg-purple-100 text-purple-800 border border-purple-200; }
+        .badge-skyblue { @apply bg-sky-100 text-sky-800 border border-sky-200; }
+        .badge-blue { @apply bg-blue-100 text-blue-800 border border-blue-200; }
+        .badge-green { @apply bg-green-100 text-green-800 border border-green-200; }
+        .badge-orange { @apply bg-orange-100 text-orange-800 border border-orange-200; }
+        .badge-yellow { @apply bg-yellow-100 text-yellow-800 border border-yellow-200; }
+        .badge-admin { @apply bg-gray-800 text-white border border-gray-600; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-600 pb-20 text-sm">
+    <div id="app">
+        
+        <nav v-if="token" class="bg-white p-4 sticky top-0 z-50 shadow-md transition-all duration-500 border-b border-slate-100">
+            <div class="container mx-auto flex justify-between items-center px-2">
+                <div class="flex items-center gap-3">
+                    <img src="png.png" alt="Logo" class="h-10 md:h-12 w-auto drop-shadow-sm">
+                    <div class="flex flex-col">
+                        <span class="font-heading font-bold text-lg md:text-xl text-black leading-tight">ชงโคเกมส์</span>
+                        <span class="text-xs text-slate-500">วิทยาลัยเทคนิคพังงา</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <button @click="showProfileMenu = !showProfileMenu" class="flex items-center gap-2 focus:outline-none bg-slate-100 p-1.5 pr-3 rounded-full hover:bg-slate-200 transition border border-slate-200">
+                            <img :src="'https://ui-avatars.com/api/?name='+(user.full_name || user.username)+'&background=random'" class="h-8 w-8 rounded-full border border-slate-300 object-cover">
+                            <span class="text-black font-bold text-sm hidden md:inline">{{ user.full_name || user.username }}</span>
+                            <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        
+                        <div v-if="showProfileMenu" class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl py-2 z-50 animate-fade-in-up border border-slate-100">
+                            <div class="px-4 py-2 border-b border-slate-100 bg-slate-50">
+                                <p class="text-sm font-bold text-slate-800">{{ user.full_name }}</p>
+                                <p class="text-xs text-slate-500 capitalize mt-1">{{ getRoleName(user.role) }} <span :class="getBadgeClass(user.color)" class="px-1.5 py-0.5 rounded ml-1 text-[10px]">{{ getColorName(user.color) }}</span></p>
+                            </div>
+                            <a href="#" @click.prevent="openEditProfile" class="block px-4 py-2 text-sm text-slate-700 hover:bg-purple-50 hover:text-purple-600 transition flex items-center gap-2">✏️ แก้ไขโปรไฟล์</a>
+                            <a href="#" @click.prevent="confirmLogout" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition flex items-center gap-2">🚪 ออกจากระบบ</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div v-if="!token" class="flex items-center justify-center min-h-screen p-4 relative overflow-hidden">
+            <div class="glass-card p-6 md:p-8 rounded-[2rem] shadow-xl w-full max-w-md relative z-10 border-t border-white/60">
+                <div class="text-center mb-4">
+                    <img src="png.png" alt="Logo" class="h-16 w-auto mx-auto mb-2 drop-shadow-md hover:scale-105 transition duration-500">
+                    <h1 class="text-2xl md:text-3xl font-heading font-bold text-slate-800 mb-1">ชงโคเกมส์</h1>
+                    <p class="text-slate-500 font-light text-xs tracking-widest uppercase">วิทยาลัยเทคนิคพังงา</p>
+                </div>
+                <div class="flex justify-center mb-4 bg-slate-100/50 p-1 rounded-xl">
+                    <button @click="isLoginMode = true" :class="isLoginMode ? 'bg-white shadow-sm text-purple-600' : 'text-slate-400 hover:text-slate-600'" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all">เข้าสู่ระบบ</button>
+                    <button @click="isLoginMode = false" :class="!isLoginMode ? 'bg-white shadow-sm text-purple-600' : 'text-slate-400 hover:text-slate-600'" class="flex-1 py-2 rounded-lg text-xs font-medium transition-all">ลงทะเบียน</button>
+                </div>
+                <form @submit.prevent="authAction" class="space-y-3">
+                    <input v-model="authForm.username" type="text" placeholder="ชื่อผู้ใช้ (Username)" class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none text-sm focus:ring-2 focus:ring-purple-200 transition" required>
+                    <input v-model="authForm.password" type="password" placeholder="รหัสผ่าน (Password)" class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none text-sm focus:ring-2 focus:ring-purple-200 transition" required>
+                    
+                    <div v-if="!isLoginMode" class="space-y-3 animate-fade-in-up">
+                        <input v-model="authForm.full_name" type="text" placeholder="ชื่อ-นามสกุล" class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none text-sm" required>
+                        <select v-model="authForm.role" class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none text-sm text-slate-600" required>
+                            <option value="" disabled selected>เลือกตำแหน่ง</option>
+                            <option value="staff">Staff</option>
+                            <option value="president">ประธานสี</option>
+                            <option value="vice">รองประธานสี</option>
+                            <option value="treasurer">เหรัญญิก</option>
+                            <option value="admin">ผู้ดูแลระบบ</option>
+                        </select>
+                        <select v-if="authForm.role !== 'admin'" v-model="authForm.color" class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none text-sm text-slate-600" required>
+                            <option value="" disabled selected>เลือกสีสังกัด</option>
+                            <option value="purple">สีม่วง</option>
+                            <option value="skyblue">สีฟ้า</option>
+                            <option value="blue">สีน้ำเงิน</option>
+                            <option value="green">สีเขียว</option>
+                            <option value="orange">สีแสด</option>
+                            <option value="yellow">สีเหลือง</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full mt-4 btn-luxury font-heading font-bold py-3 rounded-xl shadow-lg text-sm hover:scale-[1.02] active:scale-[0.98] transition">{{ isLoginMode ? 'เข้าสู่ระบบ' : 'ยืนยันการลงทะเบียน' }}</button>
+                </form>
+            </div>
+        </div>
+
+        <div v-else class="container mx-auto p-4 md:p-8 max-w-[95%] xl:max-w-7xl pb-24">
+            
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
+                <div class="flex overflow-x-auto gap-2 pb-1 md:pb-0 scrollbar-hide w-full md:w-auto p-1">
+                    <button @click="currentTab = 'members'" :class="currentTab === 'members' ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-50'" class="px-6 py-3 rounded-xl text-base font-heading font-bold whitespace-nowrap transition-all flex-1 md:flex-none">👕 สมาชิก</button>
+                    <button v-if="canAccessBudget" @click="currentTab = 'budget'" :class="currentTab === 'budget' ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-50'" class="px-6 py-3 rounded-xl text-base font-heading font-bold whitespace-nowrap transition-all flex-1 md:flex-none">💰 งบประมาณ</button>
+                    <button v-if="user.role === 'admin'" @click="loadUsers" :class="currentTab === 'users' ? 'bg-purple-600 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-50'" class="px-6 py-3 rounded-xl text-base font-heading font-bold whitespace-nowrap transition-all flex-1 md:flex-none">👮 ผู้ใช้ระบบ</button>
+                </div>
+
+                <div v-if="user.role === 'admin' && currentTab !== 'users'" class="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200 w-full md:w-auto">
+                    <span class="font-bold text-slate-700 text-sm pl-2 whitespace-nowrap">⚙️ กรองข้อมูล:</span>
+                    <select v-model="adminFilterColor" @change="fetchData(true)" class="py-2 px-4 bg-white rounded-lg text-sm text-slate-600 outline-none border border-slate-200 cursor-pointer w-full md:w-auto">
+                        <option value="all">แสดงทั้งหมด</option>
+                        <option value="orange">สีแสด</option>
+                        <option value="green">สีเขียว</option>
+                        <option value="purple">สีม่วง</option>
+                        <option value="skyblue">สีฟ้า</option>
+                        <option value="blue">สีน้ำเงิน</option>
+                        <option value="yellow">สีเหลือง</option>
+                    </select>
+                </div>
+            </div>
+
+            <div v-if="currentTab === 'members'" class="animate-fade-in-up">
+                <div class="glass-card p-6 md:p-8 rounded-[2rem]">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                        <div>
+                            <h2 class="text-2xl md:text-3xl font-bold text-slate-800">รายชื่อสมาชิก</h2>
+                            <p class="text-slate-400 text-sm mt-1">ทั้งหมด <span class="font-bold text-purple-600">{{ filteredMembers.length }}</span> คน</p>
+                        </div>
+                        <div class="flex flex-wrap gap-3 w-full md:w-auto">
+                            <button @click="generateSummary" class="bg-indigo-500 text-white px-5 py-3 rounded-xl shadow hover:bg-indigo-600 flex items-center justify-center gap-2 text-sm font-bold flex-1 md:flex-none transition">📋 สรุปยอด</button>
+                            <button v-if="canEditMembers" @click="openAddMember" class="btn-luxury px-6 py-3 rounded-xl shadow flex items-center justify-center gap-2 text-sm font-bold flex-1 md:flex-none">+ เพิ่มสมาชิก</button>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide">
+                        <button @click="levelFilter = 'all'" :class="levelFilter === 'all' ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">ทั้งหมด</button>
+                        <button v-for="lvl in levels" :key="lvl.id" @click="levelFilter = lvl.id" :class="levelFilter === lvl.id ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">{{ lvl.name }}</button>
+                    </div>
+
+                    <div v-if="Object.keys(groupedMembers).length > 0">
+                        <div v-for="(rooms, dept) in groupedMembers" :key="dept" class="mb-8 bg-white/50 rounded-2xl border border-slate-100 p-4 shadow-sm">
+                            <h3 class="text-lg md:text-xl font-bold text-slate-700 mb-3 flex items-center gap-2">
+                                <span class="bg-purple-100 text-purple-700 p-1.5 rounded-lg text-sm">🏢</span> {{ dept }}
+                            </h3>
+                            
+                            <div v-for="(members, roomKey) in rooms" :key="roomKey" class="mb-4 ml-2 md:ml-4">
+                                <h4 class="text-sm md:text-base font-semibold text-slate-600 mb-2 flex items-center gap-2 bg-slate-50 w-fit px-3 py-1 rounded-full border border-slate-200">
+                                    <span class="w-2 h-2 rounded-full bg-slate-400"></span> {{ roomKey }}
+                                    <span class="text-xs text-slate-400 font-normal">({{ members.length }} คน)</span>
+                                </h4>
+                                
+                                <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
+                                    <table class="w-full text-left min-w-[600px]">
+                                        <thead class="bg-slate-50 text-slate-500 text-sm font-bold">
+                                            <tr>
+                                                <th class="p-3 w-16">ลำดับ</th>
+                                                <th class="p-3">สี/สังกัด</th>
+                                                <th class="p-3">ชื่อ-นามสกุล</th>
+                                                <th class="p-3">รหัสนักศึกษา</th>
+                                                <th class="p-3 text-center">ไซต์</th>
+                                                <th class="p-3 text-center">สถานะ</th>
+                                                <th v-if="canEditMembers" class="p-3 text-right">จัดการ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y text-sm">
+                                            <tr v-for="(m, index) in members" :key="m.id" class="hover:bg-purple-50/30 transition">
+                                                <td class="p-3 text-center text-slate-400 font-mono">{{ index + 1 }}</td>
+                                                <td class="p-3">
+                                                    <span :class="getBadgeClass(m.color)" class="px-2 py-0.5 rounded text-[10px] font-bold border">{{ getColorName(m.color) }}</span>
+                                                </td>
+                                                <td class="p-3 font-medium text-slate-700">{{ m.name }}</td>
+                                                <td class="p-3 font-mono text-slate-500">{{ m.student_id }}</td>
+                                                <td class="p-3 text-center"><span class="bg-white/80 px-2 py-1 rounded font-bold font-mono border border-slate-200 shadow-sm">{{ m.shirt_size }}</span></td>
+                                                <td class="p-3 text-center">
+                                                    <div class="flex gap-1 justify-center">
+                                                        <span v-if="m.is_paid" class="text-green-600 bg-white/80 px-1.5 py-0.5 rounded text-[10px] font-bold border border-green-200">💰 จ่ายแล้ว</span>
+                                                        <span v-else class="text-red-400 bg-white/80 px-1.5 py-0.5 rounded text-[10px] font-bold border border-red-100">รอจ่าย</span>
+                                                        <span v-if="m.is_received" class="text-blue-600 bg-white/80 px-1.5 py-0.5 rounded text-[10px] font-bold border border-blue-200">👕 รับแล้ว</span>
+                                                    </div>
+                                                </td>
+                                                <td v-if="canEditMembers" class="p-3 text-right">
+                                                    <div class="flex gap-2 justify-end">
+                                                        <button @click="openEditMember(m)" class="text-yellow-600 bg-white/80 p-1.5 rounded-lg hover:bg-yellow-100 border border-yellow-200 transition shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                                                        <button @click="deleteMember(m.id)" class="text-red-500 bg-white/80 p-1.5 rounded-lg hover:bg-red-100 border border-red-200 transition shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else class="p-8 text-center text-slate-400 text-sm bg-slate-50 rounded-2xl border border-slate-100">
+                        <span class="text-2xl block mb-2">📭</span> ไม่พบข้อมูลสมาชิก
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentTab === 'budget'" class="animate-fade-in-up">
+                <div class="glass-card p-6 md:p-8 rounded-[2rem]">
+                    <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-800">งบประมาณ</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-green-50 p-6 rounded-2xl text-center border border-green-100 shadow-sm"><div class="text-sm text-green-600 font-bold mb-1 uppercase tracking-wide">รายรับ</div><div class="text-3xl font-bold text-green-700">{{ formatCurrency(totalIncome) }}</div></div>
+                        <div class="bg-red-50 p-6 rounded-2xl text-center border border-red-100 shadow-sm"><div class="text-sm text-red-600 font-bold mb-1 uppercase tracking-wide">รายจ่าย</div><div class="text-3xl font-bold text-red-700">{{ formatCurrency(totalExpense) }}</div></div>
+                        <div class="bg-blue-50 p-6 rounded-2xl text-center border border-blue-100 shadow-sm"><div class="text-sm text-blue-600 font-bold mb-1 uppercase tracking-wide">คงเหลือ</div><div class="text-3xl font-bold text-blue-700">{{ formatCurrency(totalIncome - totalExpense) }}</div></div>
+                    </div>
+                    
+                    <div class="flex gap-3 mb-6" v-if="canManageBudget">
+                        <button v-if="canSetBudget" @click="openTransactionModal('set_balance')" class="flex-1 bg-teal-500 text-white py-2 px-4 rounded-xl text-xs font-bold shadow hover:bg-teal-600 transition">💰 ตั้งงบเริ่มต้น</button>
+                        <button @click="openTransactionModal('new')" class="flex-[2] btn-luxury py-3 rounded-2xl text-base font-bold shadow transition">+ บันทึกรายการใหม่</button>
+                    </div>
+                    <div v-else class="bg-slate-50 p-4 rounded-2xl text-center text-slate-500 text-sm mb-6 border border-slate-200 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        <span>เฉพาะเหรัญญิกและแอดมินเท่านั้นที่สามารถจัดการงบประมาณได้</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div v-for="t in budgetList" :key="t.id" class="flex justify-between items-center bg-white/60 border border-slate-100 rounded-2xl p-5 hover:bg-white transition shadow-sm group">
+                            <div class="flex gap-4 items-center">
+                                <div :class="t.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'" class="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold shadow-inner">{{ t.type === 'income' ? '↗' : '↘' }}</div>
+                                <div>
+                                    <div class="text-lg font-bold text-slate-700">{{ t.description }}</div>
+                                    <div v-if="user.role === 'admin'" class="text-sm text-slate-400">{{ getColorName(t.color) }}</div>
+                                    
+                                </div>
+                            </div>
+                            <div class="flex gap-4 items-center">
+                                <span :class="t.type === 'income' ? 'text-green-600' : 'text-red-500'" class="font-bold text-xl">{{ formatCurrency(t.amount) }}</span>
+                                <div v-if="canManageBudget" class="flex gap-2">
+                                    <button @click="openTransactionModal('edit', t)" class="text-yellow-600 bg-yellow-100 p-2 rounded-xl hover:bg-yellow-200 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                                    <button @click="deleteTransaction(t.id)" class="text-red-600 bg-red-100 p-2 rounded-xl hover:bg-red-200 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentTab === 'users'" class="animate-fade-in-up">
+                <div class="glass-card p-6 rounded-[2rem]">
+                    <h2 class="text-2xl font-bold mb-6 text-slate-800">ผู้ใช้งานระบบ</h2>
+                    <div class="overflow-x-auto rounded-2xl border border-slate-100">
+                        <table class="w-full text-left min-w-[800px]">
+                            <thead class="bg-slate-50 text-slate-500 text-base"><tr><th class="p-4">User</th><th class="p-4">ชื่อ</th><th class="p-4">Role</th><th class="p-4">สังกัดสี</th><th class="p-4">รหัสผ่าน (Hash)</th><th class="p-4 text-center">จัดการ</th></tr></thead>
+                            <tbody class="divide-y text-base">
+                                <tr v-for="u in userList" :key="u.id" class="hover:bg-slate-50 transition">
+                                    <td class="p-4 font-bold text-purple-600">{{ u.username }}</td>
+                                    <td class="p-4">{{ u.full_name }}</td>
+                                    <td class="p-4"><span class="bg-slate-100 px-3 py-1 rounded-lg text-sm">{{ getRoleName(u.role) }}</span></td>
+                                    <td class="p-4"><span :class="getBadgeClass(u.color)" class="px-3 py-1 rounded-full text-xs font-bold border">{{ getColorName(u.color) }}</span></td>
+                                    <td class="p-4 text-xs font-mono text-slate-400 break-all max-w-[120px]">{{ u.password.substring(0, 15) }}...</td>
+                                    <td class="p-4 text-center">
+                                        <button @click="resetPassword(u.id, u.username)" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm hover:bg-slate-700 shadow transition">Reset Password</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showEditProfileModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+            <div class="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl animate-fade-in-up">
+                <h3 class="text-2xl font-bold mb-6">แก้ไขข้อมูลส่วนตัว</h3>
+                <form @submit.prevent="updateProfile" class="space-y-6">
+                    <div class="flex justify-center mb-6">
+                        <div class="relative group cursor-pointer" @click="$refs.editAvatar.click()">
+                            <img :src="'https://ui-avatars.com/api/?name='+(user.full_name || user.username)+'&background=random'" class="h-28 w-28 rounded-full object-cover border-4 border-slate-100 shadow-lg">
+                        </div>
+                    </div>
+                    <input v-model="profileForm.full_name" placeholder="ชื่อ-นามสกุล" class="w-full p-4 bg-slate-50 rounded-2xl text-base border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                    <div class="border-t pt-4">
+                        <label class="text-sm text-slate-400 mb-2 block">เปลี่ยนรหัสผ่าน (ถ้าไม่เปลี่ยนให้เว้นว่าง)</label>
+                        <input v-model="profileForm.new_password" type="password" placeholder="รหัสผ่านใหม่" class="w-full p-4 bg-slate-50 rounded-2xl text-base border border-slate-200 outline-none focus:ring-2 focus:ring-purple-200">
+                    </div>
+                    <div class="flex gap-3 pt-4">
+                        <button type="button" @click="showEditProfileModal = false" class="flex-1 bg-slate-100 py-3 rounded-2xl text-base font-bold hover:bg-slate-200 transition">ยกเลิก</button>
+                        <button type="submit" class="flex-1 btn-luxury py-3 rounded-2xl text-base font-bold shadow-lg">บันทึก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div v-if="showAddMemberModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl animate-fade-in-up">
+                <h3 class="text-2xl font-bold mb-6 text-slate-800">{{ memberForm.id ? 'แก้ไขสมาชิก' : 'เพิ่มสมาชิก' }}</h3>
+                <form @submit.prevent="saveMember" class="space-y-4">
+                    <div v-if="user.role === 'admin'"><label class="text-sm font-bold text-slate-400 ml-1">เลือกสี</label><select v-model="memberForm.target_color" class="w-full bg-slate-50 p-4 rounded-2xl text-base outline-none"><option value="purple">สีม่วง</option><option value="skyblue">สีฟ้า</option><option value="blue">สีน้ำเงิน</option><option value="green">สีเขียว</option><option value="orange">สีแสด</option><option value="yellow">สีเหลือง</option></select></div>
+                    <select v-model="memberForm.department" class="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100" required><option value="" disabled>เลือกแผนกวิชา</option><option v-for="dept in currentDepartmentOptions" :value="dept">{{ dept }}</option></select>
+                    <input v-model="memberForm.name" placeholder="ชื่อ-นามสกุล" class="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100" required>
+                    <input v-model="memberForm.student_id" placeholder="รหัสนักศึกษา" class="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100">
+                    <div class="flex gap-3">
+                        <select v-model="memberForm.level" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option v-for="l in levels" :value="l.id">{{ l.name }}</option></select>
+                        <select v-model="memberForm.room" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option value="" disabled>ห้อง</option><option v-for="n in 10" :key="n" :value="n">{{ n }}</option></select>
+                        <select v-model="memberForm.shirt_size" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="2XL">2XL</option><option value="3XL">3XL</option><option value="4XL">4XL</option></select>
+                    </div>
+                    
+                    <div class="flex gap-4 pt-2">
+                        <label class="flex items-center gap-2 cursor-pointer bg-green-50 p-3 rounded-xl border border-green-100 flex-1 justify-center hover:bg-green-100 transition">
+                            <input type="checkbox" v-model="memberForm.is_paid" class="w-5 h-5 text-green-600 rounded">
+                            <span class="text-sm font-bold text-green-700">💰 จ่ายเงิน</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer bg-blue-50 p-3 rounded-xl border border-blue-100 flex-1 justify-center hover:bg-blue-100 transition">
+                            <input type="checkbox" v-model="memberForm.is_received" class="w-5 h-5 text-blue-600 rounded">
+                            <span class="text-sm font-bold text-blue-700">👕 รับเสื้อ</span>
+                        </label>
+                    </div>
+
+                    <div class="flex gap-3 pt-4"><button type="button" @click="showAddMemberModal = false" class="flex-1 bg-slate-100 py-3 rounded-2xl text-base font-bold text-slate-600 hover:bg-slate-200 transition">ยกเลิก</button><button type="submit" class="flex-1 btn-luxury py-3 rounded-2xl text-base font-bold shadow-lg">บันทึก</button></div>
+                </form>
+            </div>
+        </div>
+
+        <div v-if="showTransactionModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div class="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl animate-fade-in-up">
+                <h3 class="text-2xl font-bold mb-6 text-slate-800">{{ transactionMode === 'edit' ? 'แก้ไขรายการ' : (transactionMode === 'set_balance' ? 'ตั้งงบประมาณเริ่มต้น' : 'บันทึกรายการ') }}</h3>
+                <form @submit.prevent="saveTransaction" class="space-y-5">
+                    <div v-if="user.role === 'admin' && transactionMode === 'new'"><label class="text-sm font-bold text-slate-400 ml-1">ของสี</label><select v-model="transactionForm.target_color" class="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none"><option value="purple">สีม่วง</option><option value="skyblue">สีฟ้า</option><option value="blue">สีน้ำเงิน</option><option value="green">สีเขียว</option><option value="orange">สีแสด</option><option value="yellow">สีเหลือง</option></select></div>
+                    <input v-model="transactionForm.description" placeholder="รายการ (เช่น ค่าสี, ค่าอุปกรณ์)" class="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100" required :disabled="transactionMode === 'set_balance'">
+                    <div class="flex gap-3">
+                        <input v-model="transactionForm.amount" type="number" placeholder="จำนวนเงิน" class="w-2/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100" required>
+                        <select v-model="transactionForm.type" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100" :disabled="transactionMode === 'set_balance'">
+                            <option value="income">รับ (+)</option>
+                            <option value="expense" :disabled="!canWithdraw">จ่าย (-)</option>
+                        </select>
+                    </div>
+                    
+                    <div v-if="!canWithdraw && transactionForm.type !== 'expense'" class="bg-yellow-50 text-yellow-800 p-3 rounded-xl text-sm border border-yellow-100">
+                        ⚠️ ท่านสามารถบันทึกรายรับได้เท่านั้น หากต้องการเบิกจ่าย (Expense) กรุณาแจ้ง <b>เหรัญญิก</b> เพื่อดำเนินการ
+                    </div>
+
+                    <div class="border-t pt-4 border-dashed border-slate-200">
+                        <label class="text-sm text-red-500 font-bold block mb-2 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> ยืนยันรหัสผ่านเพื่อบันทึก</label>
+                        <input v-model="transactionForm.confirm_password" type="password" placeholder="ใส่รหัสผ่านของคุณ" class="w-full p-4 bg-red-50 border border-red-100 rounded-2xl text-base outline-none focus:ring-2 focus:ring-red-200" required>
+                    </div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="button" @click="showTransactionModal = false" class="flex-1 bg-slate-100 py-3 rounded-2xl text-base font-bold text-slate-600 hover:bg-slate-200 transition">ยกเลิก</button>
+                        <button type="submit" class="flex-1 btn-luxury py-3 rounded-2xl text-base font-bold shadow-lg">{{ transactionMode === 'edit' ? 'บันทึกแก้ไข' : 'ยืนยัน' }}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDL_PJ2Db4E8AczoG1xA0TRfcJSXhIfXw2cEjd2RhGsenFFWdEXGC382kUv3wopiPS/exec'; 
+
+        createApp({
+            setup() {
+                const token = ref(localStorage.getItem('token') || '');
+                const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+                const isLoginMode = ref(true);
+                const currentTab = ref('members');
+                const showAddMemberModal = ref(false);
+                const showTransactionModal = ref(false);
+                const showEditProfileModal = ref(false); 
+                const showProfileMenu = ref(false); 
+                const transactionMode = ref('new');
+                const members = ref([]);
+                const budgetList = ref([]); 
+                const userList = ref([]);
+                const levelFilter = ref('all');
+                const adminFilterColor = ref('all');
+                
+                const authForm = ref({ username: '', password: '', full_name: '', color: '', role: '' });
+                const memberForm = ref({ id: null, name: '', student_id: '', level: 'voc1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false });
+                const transactionForm = ref({ id: null, description: '', amount: '', type: 'expense', target_color: 'purple', confirm_password: '' });
+                const profileForm = ref({ full_name: '', new_password: '' });
+
+                const levels = [ { id: 'voc1', name: 'ปวช.1' }, { id: 'voc2', name: 'ปวช.2' }, { id: 'voc3', name: 'ปวช.3' }, { id: 'hvoc1', name: 'ปวส.1' }, { id: 'hvoc2', name: 'ปวส.2' } ];
+                const departments = {
+                    orange: ['ช่างไฟฟ้า', 'อาหารและโภชนาการ'], green: ['ช่างยนต์', 'เทคโนโลยีสารสนเทศ'], purple: ['เทคโนโลยีฐานวิทยาศาสตร์'],
+                    skyblue: ['ช่างอิเล็กทรอนิกส์', 'เทคโนโลยีธุรกิจดิจิทัล', 'การโรงแรม'], blue: ['ช่างก่อสร้าง', 'การตลาด'], yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล']
+                };
+
+                const currentDepartmentOptions = computed(() => {
+                    let color = user.value.color;
+                    if (user.value.role === 'admin') color = memberForm.value.target_color || 'purple';
+                    return departments[color] || [];
+                });
+                
+                const getDeptOptions = (c) => departments[c] || [];
+
+                const canEditMembers = computed(() => ['president', 'vice', 'admin', 'treasurer'].includes(user.value.role));
+                
+                const canAccessBudget = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
+                const canManageBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
+                const canSetBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
+                const canWithdraw = computed(() => ['treasurer', 'admin'].includes(user.value.role));
+
+                const callSheet = async (action, payload = {}) => {
+                    try {
+                        const response = await axios.post(GOOGLE_SCRIPT_URL, JSON.stringify({ action, ...payload }), {
+                            headers: { "Content-Type": "text/plain" }
+                        });
+                        return response.data;
+                    } catch (error) {
+                        console.error("API Error:", error);
+                        return { status: 'error', message: 'Connection Failed' };
+                    }
+                };
+
+                const authAction = async () => {
+                    Swal.fire({ title: 'กำลังตรวจสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const action = isLoginMode.value ? 'login' : 'register';
+                    const res = await callSheet(action, authForm.value);
+                    
+                    if (res && res.status === 'success') {
+                        if (isLoginMode.value) {
+                            token.value = 'mock-token';
+                            user.value = res.user;
+                            localStorage.setItem('token', token.value);
+                            localStorage.setItem('user', JSON.stringify(res.user));
+                            await fetchData(true); 
+                            Swal.fire('สำเร็จ', 'เข้าสู่ระบบแล้ว', 'success');
+                        } else {
+                            Swal.fire('สำเร็จ', 'ลงทะเบียนเรียบร้อย กรุณาเข้าสู่ระบบ', 'success');
+                            isLoginMode.value = true;
+                            authForm.value = { username: '', password: '', full_name: '', color: '', role: '' };
+                        }
+                    } else {
+                        Swal.fire('ผิดพลาด', res ? res.message : 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ', 'error');
+                    }
+                };
+
+                const fetchData = async (showLoading = false) => {
+                    if (!token.value) return;
+                    
+                    if(showLoading) {
+                        Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    }
+
+                    try {
+                        const [resM, resB] = await Promise.all([
+                            callSheet('getMembers'),
+                            callSheet('getBudget')
+                        ]);
+
+                        let filtered = Array.isArray(resM) ? resM : [];
+                        if(user.value.role !== 'admin') {
+                            filtered = filtered.filter(m => m.color === user.value.color);
+                        }
+                        if(user.value.role === 'admin' && adminFilterColor.value !== 'all') {
+                            filtered = filtered.filter(m => m.color === adminFilterColor.value);
+                        }
+                        members.value = filtered;
+
+                        let filteredB = Array.isArray(resB) ? resB : [];
+                        if(user.value.role !== 'admin') {
+                            filteredB = filteredB.filter(b => b.color === user.value.color);
+                        }
+                        budgetList.value = filteredB;
+                    } finally {
+                        if(showLoading) Swal.close();
+                    }
+                };
+
+                const filteredMembers = computed(() => {
+                    let res = members.value;
+                    if (levelFilter.value !== 'all') res = res.filter(m => m.level === levelFilter.value);
+                    return res;
+                });
+
+                const saveMember = async () => {
+                      Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                      const payload = { ...memberForm.value, user_id: user.value.id };
+                      await callSheet('saveMember', payload);
+                      showAddMemberModal.value = false;
+                      await fetchData(false);
+                      Swal.fire('สำเร็จ', 'บันทึกข้อมูลแล้ว', 'success');
+                };
+                
+                const openAddMember = () => {
+                    memberForm.value = { id: null, name: '', student_id: '', level: 'voc1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false };
+                    showAddMemberModal.value = true;
+                };
+
+                const openEditMember = (member) => {
+                    memberForm.value = { ...member, is_paid: !!member.is_paid, is_received: !!member.is_received }; 
+                    showAddMemberModal.value = true;
+                };
+
+                const deleteMember = async (id) => {
+                      const result = await Swal.fire({
+                          title: 'ยืนยันการลบ?',
+                          text: "ต้องการลบข้อมูลสมาชิกใช่หรือไม่ การกระทำนี้ไม่สามารถย้อนกลับได้",
+                          icon: 'warning',
+                          showCancelButton: true,
+                          confirmButtonColor: '#d33',
+                          cancelButtonColor: '#3085d6',
+                          confirmButtonText: 'ลบข้อมูล',
+                          cancelButtonText: 'ยกเลิก'
+                      });
+
+                      if (result.isConfirmed) {
+                          Swal.fire({ title: 'กำลังลบข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                          await callSheet('deleteMember', { id });
+                          await fetchData(false);
+                          Swal.fire('สำเร็จ', 'ลบข้อมูลเรียบร้อยแล้ว', 'success');
+                      }
+                };
+                
+                const openTransactionModal = (mode, data = null) => {
+                    transactionMode.value = mode;
+                    transactionForm.value = { description: '', amount: '', type: 'expense', target_color: 'purple', confirm_password: '' };
+                    if (mode === 'edit' && data) {
+                        transactionForm.value = { ...data, confirm_password: '' };
+                    } else if (mode === 'set_balance') { 
+                        transactionForm.value.description = 'ยอดยกมา (งบเริ่มต้น)'; 
+                        transactionForm.value.type = 'income'; 
+                    } else if (mode === 'new') {
+                        if (!canWithdraw.value) transactionForm.value.type = 'income';
+                    }
+                    showTransactionModal.value = true;
+                };
+                
+                const saveTransaction = async () => {
+                    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    const payload = { ...transactionForm.value, user_id: user.value.id };
+                    await callSheet('saveTransaction', payload);
+                    showTransactionModal.value = false;
+                    await fetchData(false);
+                    Swal.fire('สำเร็จ', 'บันทึกข้อมูลแล้ว', 'success');
+                };
+                
+                const deleteTransaction = async (id) => {
+                      const result = await Swal.fire({
+                          title: 'ยืนยันการลบ?',
+                          text: "คุณต้องการลบรายการนี้ใช่หรือไม่",
+                          icon: 'warning',
+                          showCancelButton: true,
+                          confirmButtonColor: '#d33',
+                          cancelButtonColor: '#3085d6',
+                          confirmButtonText: 'ลบรายการ',
+                          cancelButtonText: 'ยกเลิก'
+                      });
+
+                      if(result.isConfirmed) {
+                        Swal.fire({ title: 'กำลังลบข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        await callSheet('deleteTransaction', { id });
+                        await fetchData(false);
+                        Swal.fire('สำเร็จ', 'ลบรายการเรียบร้อยแล้ว', 'success');
+                      }
+                };
+                
+                const logout = () => {
+                    token.value = '';
+                    localStorage.clear();
+                };
+
+                const confirmLogout = () => {
+                    Swal.fire({ title: 'ออกจากระบบ?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ยืนยัน', cancelButtonText: 'ยกเลิก' }).then((result) => { if (result.isConfirmed) logout(); });
+                };
+
+                const openEditProfile = () => {
+                    profileForm.value = { full_name: user.value.name, new_password: '' };
+                    showEditProfileModal.value = true;
+                    showProfileMenu.value = false;
+                };
+
+                const updateProfile = async () => {
+                      Swal.fire({ title: 'กำลังอัปเดต...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                      const payload = { ...profileForm.value, id: user.value.id };
+                      await callSheet('updateProfile', payload);
+                      // 🟢 แก้ไข: อัปเดต user.full_name แทน user.name
+                      user.value.full_name = profileForm.value.full_name;
+                      localStorage.setItem('user', JSON.stringify(user.value));
+                      showEditProfileModal.value = false;
+                      Swal.fire('สำเร็จ', 'อัปเดตข้อมูลแล้ว', 'success');
+                };
+
+                const resetPassword = async (id, username) => {
+                    const { value: newPassword } = await Swal.fire({ title: `รีเซ็ตรหัสของ: ${username}`, input: 'text', inputLabel: 'รหัสผ่านใหม่', showCancelButton: true });
+                    if (newPassword) {
+                         Swal.fire({ title: 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                         await callSheet('updateProfile', { id: id, new_password: newPassword });
+                         Swal.fire('สำเร็จ', 'รีเซ็ตรหัสแล้ว', 'success');
+                    }
+                };
+                
+                const importExcel = async (event) => { console.log('Import removed'); };
+
+                 const groupedMembers = computed(() => {
+                    const groups = {};
+                    members.value.forEach(m => {
+                        const dept = m.department || 'ไม่ระบุ';
+                        const roomKey = `${m.level} ห้อง ${m.room}`;
+                        if(!groups[dept]) groups[dept] = {};
+                        if(!groups[dept][roomKey]) groups[dept][roomKey] = [];
+                        groups[dept][roomKey].push(m);
+                    });
+                    return groups;
+                });
+                
+                const totalIncome = computed(() => budgetList.value.filter(b => b.type === 'income').reduce((sum, b) => sum + Number(b.amount), 0));
+                const totalExpense = computed(() => budgetList.value.filter(b => b.type === 'expense').reduce((sum, b) => sum + Number(b.amount), 0));
+
+                const generateSummary = () => {
+                    const summary = {};
+                    filteredMembers.value.forEach(m => {
+                        const dept = m.department || 'ไม่ระบุแผนก';
+                        const lvlName = getLevelName(m.level);
+                        const roomName = m.room ? `ห้อง ${m.room}` : 'ไม่ระบุห้อง';
+                        
+                        if (!summary[dept]) summary[dept] = {};
+                        if (!summary[dept][lvlName]) summary[dept][lvlName] = {};
+                        if (!summary[dept][lvlName][roomName]) summary[dept][lvlName][roomName] = { S:0, M:0, L:0, XL:0, '2XL':0, '3XL':0, '4XL':0, Total:0 };
+                        
+                        if (summary[dept][lvlName][roomName][m.shirt_size] !== undefined) {
+                            summary[dept][lvlName][roomName][m.shirt_size]++;
+                            summary[dept][lvlName][roomName].Total++;
+                        }
+                    });
+
+                    let html = '<div class="overflow-y-auto max-h-[60vh] text-left text-sm">';
+                    
+                    for (const [dept, levels] of Object.entries(summary)) {
+                        html += `<h3 class="font-bold text-base mt-4 mb-2 bg-slate-100 p-2 rounded text-slate-700 border-l-4 border-purple-500">${dept}</h3>`;
+                        for (const [lvl, rooms] of Object.entries(levels)) {
+                            html += `<h4 class="font-bold text-slate-600 mt-2 ml-2 text-xs bg-slate-50 p-1 rounded inline-block border border-slate-200">${lvl}</h4>`;
+                            html += `<table class="w-full border-collapse border border-slate-200 mt-1 mb-3 text-center text-xs">`;
+                            html += `<thead class="bg-slate-50"><tr><th class="border p-1">ห้อง</th><th class="border p-1">S</th><th class="border p-1">M</th><th class="border p-1">L</th><th class="border p-1">XL</th><th class="border p-1">2XL</th><th class="border p-1">3XL</th><th class="border p-1">4XL</th><th class="border p-1 bg-purple-50 font-bold">รวม</th></tr></thead><tbody>`;
+                            
+                            for (const [room, sizes] of Object.entries(rooms)) {
+                                html += `<tr><td class="border p-1 font-medium text-left pl-2">${room}</td>`;
+                                html += `<td class="border p-1">${sizes.S}</td><td class="border p-1">${sizes.M}</td><td class="border p-1">${sizes.L}</td><td class="border p-1">${sizes.XL}</td>`;
+                                html += `<td class="border p-1">${sizes['2XL']}</td><td class="border p-1">${sizes['3XL']}</td><td class="border p-1">${sizes['4XL']}</td>`;
+                                html += `<td class="border p-1 font-bold bg-purple-50">${sizes.Total}</td></tr>`;
+                            }
+                            html += `</tbody></table>`;
+                        }
+                    }
+                    html += '</div>';
+                    
+                    if (Object.keys(summary).length === 0) html = '<p class="text-center p-4">ไม่มีข้อมูลสมาชิก</p>';
+
+                    Swal.fire({ 
+                        title: 'สรุปยอดเสื้อ', 
+                        html: html, 
+                        width: '800px', 
+                        confirmButtonText: 'ปิด', 
+                        customClass: { popup: 'rounded-2xl' }
+                    });
+                };
+                
+                const getNavbarClass = (c) => ({ admin: 'theme-admin', purple: 'theme-purple', skyblue: 'theme-skyblue', blue: 'theme-blue', green: 'theme-green', orange: 'theme-orange', yellow: 'theme-yellow' }[c] || 'theme-admin');
+                const getColorName = (c) => ({ purple: 'สีม่วง', skyblue: 'สีฟ้า', blue: 'สีน้ำเงิน', green: 'สีเขียว', orange: 'สีแสด', yellow: 'สีเหลือง', admin: 'ส่วนกลาง' }[c] || c);
+                const getRoleName = (r) => ({ president: 'ประธาน', vice: 'รองประธาน', treasurer: 'เหรัญญิก', staff: 'Staff', admin: 'Admin' }[r] || r);
+                const getBadgeClass = (c) => ({ purple: 'badge-purple', skyblue: 'badge-skyblue', blue: 'badge-blue', green: 'badge-green', orange: 'badge-orange', yellow: 'badge-yellow', admin: 'badge-admin' }[c] || 'bg-gray-100');
+                const getLevelName = (l) => levels.find(x => x.id === l)?.name || l;
+                const formatCurrency = (val) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(val);
+
+                const loadUsers = async () => {
+                    currentTab.value = 'users';
+                    const res = await callSheet('getUsers');
+                    userList.value = res;
+                };
+
+                onMounted(() => fetchData(true)); 
+
+                return {
+                    token, user, isLoginMode, currentTab, members, authForm, memberForm, transactionForm, profileForm,
+                    budgetList, 
+                    authAction, logout, groupedMembers,
+                    deleteMember, deleteTransaction, saveMember, saveTransaction, openAddMember, openEditMember, openTransactionModal, 
+                    confirmLogout, openEditProfile, updateProfile, resetPassword, 
+                    importExcel, fetchData, generateSummary, loadUsers, adminFilterColor, currentDepartmentOptions,
+                    canEditMembers, canAccessBudget, canManageBudget, canSetBudget, canWithdraw, totalIncome, totalExpense,
+                    userList, levels, levelFilter, filteredMembers,
+                    getNavbarClass, getColorName, getRoleName, getLevelName, getBadgeClass, formatCurrency,
+                    showAddMemberModal, showTransactionModal, showEditProfileModal, showProfileMenu, transactionMode 
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
