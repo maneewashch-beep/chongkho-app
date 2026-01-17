@@ -379,28 +379,37 @@
                 const userList = ref([]);
                 const levelFilter = ref('all');
                 const adminFilterColor = ref('all');
-                
+
                 const authForm = ref({ username: '', password: '', full_name: '', color: '', role: '' });
                 const memberForm = ref({ id: null, name: '', student_id: '', level: 'voc1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false });
                 const transactionForm = ref({ id: null, description: '', amount: '', type: 'expense', target_color: 'purple', confirm_password: '' });
                 const profileForm = ref({ full_name: '', new_password: '' });
 
-                const levels = [ { id: 'voc1', name: 'ปวช.1' }, { id: 'voc2', name: 'ปวช.2' }, { id: 'voc3', name: 'ปวช.3' }, { id: 'hvoc1', name: 'ปวส.1' }, { id: 'hvoc2', name: 'ปวส.2' } ];
+                // 🟢 กำหนดข้อมูลระดับชั้น (Reference Data)
+                const levels = [ 
+                    { id: 'voc1', name: 'ปวช.1' }, 
+                    { id: 'voc2', name: 'ปวช.2' }, 
+                    { id: 'voc3', name: 'ปวช.3' }, 
+                    { id: 'hvoc1', name: 'ปวส.1' }, 
+                    { id: 'hvoc2', name: 'ปวส.2' } 
+                ];
+
                 const departments = {
                     orange: ['ช่างไฟฟ้า', 'อาหารและโภชนาการ'], green: ['ช่างยนต์', 'เทคโนโลยีสารสนเทศ'], purple: ['เทคโนโลยีฐานวิทยาศาสตร์'],
                     skyblue: ['ช่างอิเล็กทรอนิกส์', 'เทคโนโลยีธุรกิจดิจิทัล', 'การโรงแรม'], blue: ['ช่างก่อสร้าง', 'การตลาด'], yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล']
                 };
+
+                // 🟢 ฟังก์ชันช่วยแปลงรหัสเป็นชื่อไทย (Helper Function)
+                const getLevelName = (l) => levels.find(x => x.id === l)?.name || l;
 
                 const currentDepartmentOptions = computed(() => {
                     let color = user.value.color;
                     if (user.value.role === 'admin') color = memberForm.value.target_color || 'purple';
                     return departments[color] || [];
                 });
-                
-                const getDeptOptions = (c) => departments[c] || [];
 
+                const getDeptOptions = (c) => departments[c] || [];
                 const canEditMembers = computed(() => ['president', 'vice', 'admin', 'treasurer'].includes(user.value.role));
-                
                 const canAccessBudget = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
                 const canManageBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
                 const canSetBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
@@ -422,7 +431,7 @@
                     Swal.fire({ title: 'กำลังตรวจสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     const action = isLoginMode.value ? 'login' : 'register';
                     const res = await callSheet(action, authForm.value);
-                    
+
                     if (res && res.status === 'success') {
                         if (isLoginMode.value) {
                             token.value = 'mock-token';
@@ -443,7 +452,7 @@
 
                 const fetchData = async (showLoading = false) => {
                     if (!token.value) return;
-                    
+
                     if(showLoading) {
                         Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     }
@@ -487,7 +496,7 @@
                       await fetchData(false);
                       Swal.fire('สำเร็จ', 'บันทึกข้อมูลแล้ว', 'success');
                 };
-                
+
                 const openAddMember = () => {
                     memberForm.value = { id: null, name: '', student_id: '', level: 'voc1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false };
                     showAddMemberModal.value = true;
@@ -517,7 +526,7 @@
                           Swal.fire('สำเร็จ', 'ลบข้อมูลเรียบร้อยแล้ว', 'success');
                       }
                 };
-                
+
                 const openTransactionModal = (mode, data = null) => {
                     transactionMode.value = mode;
                     transactionForm.value = { description: '', amount: '', type: 'expense', target_color: 'purple', confirm_password: '' };
@@ -531,7 +540,7 @@
                     }
                     showTransactionModal.value = true;
                 };
-                
+
                 const saveTransaction = async () => {
                     Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                     const payload = { ...transactionForm.value, user_id: user.value.id };
@@ -540,7 +549,7 @@
                     await fetchData(false);
                     Swal.fire('สำเร็จ', 'บันทึกข้อมูลแล้ว', 'success');
                 };
-                
+
                 const deleteTransaction = async (id) => {
                       const result = await Swal.fire({
                           title: 'ยืนยันการลบ?',
@@ -560,7 +569,7 @@
                         Swal.fire('สำเร็จ', 'ลบรายการเรียบร้อยแล้ว', 'success');
                       }
                 };
-                
+
                 const logout = () => {
                     token.value = '';
                     localStorage.clear();
@@ -580,7 +589,6 @@
                       Swal.fire({ title: 'กำลังอัปเดต...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                       const payload = { ...profileForm.value, id: user.value.id };
                       await callSheet('updateProfile', payload);
-                      // 🟢 แก้ไข: อัปเดต user.full_name แทน user.name
                       user.value.full_name = profileForm.value.full_name;
                       localStorage.setItem('user', JSON.stringify(user.value));
                       showEditProfileModal.value = false;
@@ -595,21 +603,26 @@
                          Swal.fire('สำเร็จ', 'รีเซ็ตรหัสแล้ว', 'success');
                     }
                 };
-                
+
                 const importExcel = async (event) => { console.log('Import removed'); };
 
+                 // 🟢 จุดแก้ไขหลัก: Group สมาชิก โดยแปลงรหัสระดับชั้นเป็นชื่อไทย
                  const groupedMembers = computed(() => {
                     const groups = {};
                     members.value.forEach(m => {
                         const dept = m.department || 'ไม่ระบุ';
-                        const roomKey = `${m.level} ห้อง ${m.room}`;
+                        
+                        // 🟢 แปลง m.level (เช่น 'voc1') เป็นชื่อไทย (เช่น 'ปวช.1')
+                        const levelName = getLevelName(m.level); 
+                        const roomKey = `${levelName} ห้อง ${m.room}`;
+                        
                         if(!groups[dept]) groups[dept] = {};
                         if(!groups[dept][roomKey]) groups[dept][roomKey] = [];
                         groups[dept][roomKey].push(m);
                     });
                     return groups;
                 });
-                
+
                 const totalIncome = computed(() => budgetList.value.filter(b => b.type === 'income').reduce((sum, b) => sum + Number(b.amount), 0));
                 const totalExpense = computed(() => budgetList.value.filter(b => b.type === 'expense').reduce((sum, b) => sum + Number(b.amount), 0));
 
@@ -617,13 +630,13 @@
                     const summary = {};
                     filteredMembers.value.forEach(m => {
                         const dept = m.department || 'ไม่ระบุแผนก';
-                        const lvlName = getLevelName(m.level);
+                        const lvlName = getLevelName(m.level); // ใช้ชื่อไทย
                         const roomName = m.room ? `ห้อง ${m.room}` : 'ไม่ระบุห้อง';
-                        
+
                         if (!summary[dept]) summary[dept] = {};
                         if (!summary[dept][lvlName]) summary[dept][lvlName] = {};
                         if (!summary[dept][lvlName][roomName]) summary[dept][lvlName][roomName] = { S:0, M:0, L:0, XL:0, '2XL':0, '3XL':0, '4XL':0, Total:0 };
-                        
+
                         if (summary[dept][lvlName][roomName][m.shirt_size] !== undefined) {
                             summary[dept][lvlName][roomName][m.shirt_size]++;
                             summary[dept][lvlName][roomName].Total++;
@@ -631,14 +644,14 @@
                     });
 
                     let html = '<div class="overflow-y-auto max-h-[60vh] text-left text-sm">';
-                    
+
                     for (const [dept, levels] of Object.entries(summary)) {
                         html += `<h3 class="font-bold text-base mt-4 mb-2 bg-slate-100 p-2 rounded text-slate-700 border-l-4 border-purple-500">${dept}</h3>`;
                         for (const [lvl, rooms] of Object.entries(levels)) {
                             html += `<h4 class="font-bold text-slate-600 mt-2 ml-2 text-xs bg-slate-50 p-1 rounded inline-block border border-slate-200">${lvl}</h4>`;
                             html += `<table class="w-full border-collapse border border-slate-200 mt-1 mb-3 text-center text-xs">`;
                             html += `<thead class="bg-slate-50"><tr><th class="border p-1">ห้อง</th><th class="border p-1">S</th><th class="border p-1">M</th><th class="border p-1">L</th><th class="border p-1">XL</th><th class="border p-1">2XL</th><th class="border p-1">3XL</th><th class="border p-1">4XL</th><th class="border p-1 bg-purple-50 font-bold">รวม</th></tr></thead><tbody>`;
-                            
+
                             for (const [room, sizes] of Object.entries(rooms)) {
                                 html += `<tr><td class="border p-1 font-medium text-left pl-2">${room}</td>`;
                                 html += `<td class="border p-1">${sizes.S}</td><td class="border p-1">${sizes.M}</td><td class="border p-1">${sizes.L}</td><td class="border p-1">${sizes.XL}</td>`;
@@ -649,7 +662,7 @@
                         }
                     }
                     html += '</div>';
-                    
+
                     if (Object.keys(summary).length === 0) html = '<p class="text-center p-4">ไม่มีข้อมูลสมาชิก</p>';
 
                     Swal.fire({ 
@@ -660,12 +673,11 @@
                         customClass: { popup: 'rounded-2xl' }
                     });
                 };
-                
+
                 const getNavbarClass = (c) => ({ admin: 'theme-admin', purple: 'theme-purple', skyblue: 'theme-skyblue', blue: 'theme-blue', green: 'theme-green', orange: 'theme-orange', yellow: 'theme-yellow' }[c] || 'theme-admin');
                 const getColorName = (c) => ({ purple: 'สีม่วง', skyblue: 'สีฟ้า', blue: 'สีน้ำเงิน', green: 'สีเขียว', orange: 'สีแสด', yellow: 'สีเหลือง', admin: 'ส่วนกลาง' }[c] || c);
                 const getRoleName = (r) => ({ president: 'ประธาน', vice: 'รองประธาน', treasurer: 'เหรัญญิก', staff: 'Staff', admin: 'Admin' }[r] || r);
                 const getBadgeClass = (c) => ({ purple: 'badge-purple', skyblue: 'badge-skyblue', blue: 'badge-blue', green: 'badge-green', orange: 'badge-orange', yellow: 'badge-yellow', admin: 'badge-admin' }[c] || 'bg-gray-100');
-                const getLevelName = (l) => levels.find(x => x.id === l)?.name || l;
                 const formatCurrency = (val) => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(val);
 
                 const loadUsers = async () => {
@@ -692,4 +704,5 @@
         }).mount('#app');
     </script>
 </body>
+
 </html>
