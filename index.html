@@ -403,8 +403,8 @@
 
         createApp({
             setup() {
-                const token = ref(localStorage.getItem('token') || '');
-                const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
+                const token = ref(''); 
+                const user = ref({});  
                 const isLoginMode = ref(true);
                 const showPassword = ref(false); 
                 const currentTab = ref('members');
@@ -503,7 +503,7 @@
 
                 const currentUserRole = computed(() => (user.value.role || '').toLowerCase());
 
-                // 🟢 แก้ไข: นำ 'staff' ออกจาก canEditMembers (กลับสู่ Read-only)
+                // 🟢 แก้ไข: ลบ 'staff' ออกจาก canEditMembers (กลับสู่ Read-only)
                 const canEditMembers = computed(() => 
                     ['admin', 'president', 'vice'].includes(currentUserRole.value)
                 );
