@@ -151,16 +151,34 @@
                         <button v-for="lvl in levels" :key="lvl.id" @click="levelFilter = lvl.id" :class="levelFilter === lvl.id ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">{{ lvl.name }}</button>
                     </div>
 
+                    <div v-if="filteredMembers.length > 0 && canEditMembers" class="mb-4 p-4 bg-green-50 rounded-2xl border border-green-100 flex items-center gap-3">
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <input type="checkbox" class="w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500" 
+                                   @change="confirmBulkPay(filteredMembers, $event.target.checked)">
+                            <span class="font-bold text-green-700">💰 ยืนยันจ่ายเงินทั้งหมด ({{ filteredMembers.length }} คนที่แสดงอยู่)</span>
+                        </label>
+                    </div>
+
                     <div v-if="Object.keys(groupedMembers).length > 0">
                         <div v-for="(rooms, dept) in groupedMembers" :key="dept" class="mb-8 bg-white/50 rounded-2xl border border-slate-100 p-4 shadow-sm">
                             <h3 class="text-lg md:text-xl font-bold text-slate-700 mb-3 flex items-center gap-2">
                                 <span class="bg-purple-100 text-purple-700 p-1.5 rounded-lg text-sm">🏢</span> {{ dept }}
+                                <label v-if="canEditMembers" class="ml-2 flex items-center gap-1 cursor-pointer text-sm font-normal text-slate-500 hover:text-green-600 bg-white border px-2 py-0.5 rounded-lg">
+                                    <input type="checkbox" class="w-4 h-4 rounded text-green-600" 
+                                           @change="confirmBulkPayObj(rooms, $event.target.checked)">
+                                    <span>จ่ายครบทั้งแผนก</span>
+                                </label>
                             </h3>
                             
                             <div v-for="(members, roomKey) in rooms" :key="roomKey" class="mb-4 ml-2 md:ml-4">
                                 <h4 class="text-sm md:text-base font-semibold text-slate-600 mb-2 flex items-center gap-2 bg-slate-50 w-fit px-3 py-1 rounded-full border border-slate-200">
                                     <span class="w-2 h-2 rounded-full bg-slate-400"></span> {{ roomKey }}
                                     <span class="text-xs text-slate-400 font-normal">({{ members.length }} คน)</span>
+                                    <label v-if="canEditMembers" class="ml-2 flex items-center gap-1 cursor-pointer hover:text-green-600">
+                                        <input type="checkbox" class="w-3 h-3 rounded text-green-600" 
+                                               @change="confirmBulkPay(members, $event.target.checked)">
+                                        <span class="text-[10px]">จ่ายครบ</span>
+                                    </label>
                                 </h4>
                                 
                                 <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm bg-white">
@@ -308,7 +326,11 @@
                     <div class="flex gap-3">
                         <select v-model="memberForm.level" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option v-for="l in levels" :value="l.id">{{ l.name }}</option></select>
                         <select v-model="memberForm.room" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option value="" disabled>ห้อง</option><option v-for="n in 10" :key="n" :value="n">{{ n }}</option></select>
-                        <select v-model="memberForm.shirt_size" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="2XL">2XL</option><option value="3XL">3XL</option><option value="4XL">4XL</option></select>
+                        <select v-model="memberForm.shirt_size" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100">
+                            <option value="SS">SS</option>
+                            <option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="2XL">2XL</option><option value="3XL">3XL</option><option value="4XL">4XL</option>
+                            <option value="5XL">5XL</option><option value="6XL">6XL</option>
+                        </select>
                     </div>
                     
                     <div class="flex gap-4 pt-2">
@@ -391,16 +413,20 @@
                     { id: 'ปวช. 2', name: 'ปวช. 2' }, 
                     { id: 'ปวช. 3', name: 'ปวช. 3' }, 
                     { id: 'ปวส. 1', name: 'ปวส. 1' }, 
-                    { id: 'ปวส. 2', name: 'ปวส. 2' } 
+                    { id: 'ปวส. 2', name: 'ปวส. 2' },
+                    // 🟢 4. เพิ่ม คณะครู/บุคลากร ในตัวเลือกระดับชั้น
+                    { id: 'คณะครู/บุคลากร', name: 'ครู/บุคลากร' }
                 ];
 
                 const departments = {
-                    orange: ['ช่างไฟฟ้า', 'อาหารและโภชนาการ'], 
-                    green: ['ช่างยนต์', 'เทคโนโลยีสารสนเทศ'], 
-                    purple: ['เทคโนโลยีฐานวิทยาศาสตร์'],
-                    skyblue: ['ช่างอิเล็กทรอนิกส์', 'เทคโนโลยีธุรกิจดิจิทัล', 'การโรงแรม'], 
-                    blue: ['ช่างก่อสร้าง', 'การตลาด'], 
-                    yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล']
+                    // 🟢 4. เพิ่ม คณะครู/บุคลากร ในแต่ละสังกัดสี
+                    orange: ['ช่างไฟฟ้า', 'อาหารและโภชนาการ', 'คณะครู/บุคลากร'], 
+                    green: ['ช่างยนต์', 'เทคโนโลยีสารสนเทศ', 'คณะครู/บุคลากร'], 
+                    // 🟢 5. เพิ่ม แผนกวิชา การท่องเที่ยว แปรรูปอาหาร ไมซ์และอีเวนท์ และท่องเที่ยวเชิงสุขภาพ ในสังกัดสีม่วง
+                    purple: ['เทคโนโลยีฐานวิทยาศาสตร์', 'การท่องเที่ยว', 'แปรรูปอาหาร', 'ไมซ์และอีเวนท์', 'ท่องเที่ยวเชิงสุขภาพ', 'คณะครู/บุคลากร'],
+                    skyblue: ['ช่างอิเล็กทรอนิกส์', 'เทคโนโลยีธุรกิจดิจิทัล', 'การโรงแรม', 'คณะครู/บุคลากร'], 
+                    blue: ['ช่างก่อสร้าง', 'การตลาด', 'คณะครู/บุคลากร'], 
+                    yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล', 'คณะครู/บุคลากร']
                 };
 
                 const normalizeLevel = (input) => {
@@ -476,7 +502,6 @@
                         ]);
 
                         let filtered = Array.isArray(resM) ? resM : [];
-                        // เติมสีอัตโนมัติหากข้อมูลสีขาดหาย โดยดูจากแผนก
                         filtered = filtered.map(m => {
                             if ((!m.color || m.color.trim() === '') && m.department) {
                                 for (const [col, deptList] of Object.entries(departments)) {
@@ -510,7 +535,6 @@
                 const filteredMembers = computed(() => {
                     let res = members.value;
                     if (levelFilter.value !== 'all') {
-                        // กรองข้อมูลตามระดับชั้นที่กดเลือก
                         res = res.filter(m => normalizeLevel(m.level) === levelFilter.value);
                     }
                     return res;
@@ -635,10 +659,8 @@
 
                 const importExcel = async (event) => { console.log('Import removed'); };
 
-                 // 🟢 แก้ไขจุดสำคัญ: ใช้ filteredMembers แทน members เพื่อให้การแสดงผลเป็นไปตามตัวกรอง
                  const groupedMembers = computed(() => {
                     const groups = {};
-                    // เปลี่ยนจาก members.value เป็น filteredMembers.value
                     filteredMembers.value.forEach(m => {
                         const dept = m.department || 'ไม่ระบุ';
                         const levelName = normalizeLevel(m.level); 
@@ -656,7 +678,6 @@
 
                 const generateSummary = () => {
                     const summary = {};
-                    // ใช้ filteredMembers เพื่อให้สรุปยอดตรงกับที่เห็นบนหน้าจอ
                     filteredMembers.value.forEach(m => {
                         const dept = m.department || 'ไม่ระบุแผนก';
                         const lvlName = normalizeLevel(m.level); 
@@ -715,6 +736,58 @@
                     userList.value = res;
                 };
 
+                // 🟢 Function for Bulk Pay Logic
+                const confirmBulkPay = async (targetMembers, isChecked) => {
+                    if (!isChecked) return; // Only trigger action on check (to mark paid)
+                    
+                    const toPay = targetMembers.filter(m => !m.is_paid);
+                    if (toPay.length === 0) {
+                        Swal.fire('ข้อมูล', 'สมาชิกทุกคนในกลุ่มนี้จ่ายเงินครบแล้ว', 'info');
+                        return;
+                    }
+
+                    const result = await Swal.fire({
+                        title: `ยืนยันการจ่ายเงิน ${toPay.length} คน?`,
+                        text: "ระบบจะบันทึกว่าสมาชิกเหล่านี้จ่ายเงินแล้ว",
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#3085d6',
+                        cancelButtonColor: '#d33',
+                        confirmButtonText: 'ยืนยัน',
+                        cancelButtonText: 'ยกเลิก'
+                    });
+
+                    if (result.isConfirmed) {
+                        Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        
+                        // Process requests sequentially to avoid rate limits (or use Promise.all with chunks if backend allows)
+                        // Note: For Google Apps Script, singular updates are safer but slower. 
+                        // Visual update first for UX? No, let's be safe.
+                        
+                        let successCount = 0;
+                        for (const member of toPay) {
+                            try {
+                                await callSheet('saveMember', { ...member, is_paid: true, user_id: user.value.id });
+                                successCount++;
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        }
+                        
+                        await fetchData(false);
+                        Swal.fire('สำเร็จ', `บันทึกข้อมูลเรียบร้อย ${successCount} คน`, 'success');
+                    } else {
+                        // Revert checkbox visual if cancelled (reload data)
+                        await fetchData(false);
+                    }
+                };
+
+                // Helper to flatten room object values for department bulk pay
+                const confirmBulkPayObj = (roomsObj, isChecked) => {
+                    const allMembers = Object.values(roomsObj).flat();
+                    confirmBulkPay(allMembers, isChecked);
+                };
+
                 onMounted(() => fetchData(true)); 
 
                 return {
@@ -727,14 +800,10 @@
                     canEditMembers, canAccessBudget, canManageBudget, canSetBudget, canWithdraw, totalIncome, totalExpense,
                     userList, levels, levelFilter, filteredMembers,
                     getNavbarClass, getColorName, getRoleName, getBadgeClass, formatCurrency,
-                    showAddMemberModal, showTransactionModal, showEditProfileModal, showProfileMenu, transactionMode 
+                    showAddMemberModal, showTransactionModal, showEditProfileModal, showProfileMenu, transactionMode,
+                    // 🟢 Exported new functions
+                    confirmBulkPay, confirmBulkPayObj
                 };
             }
         }).mount('#app');
     </script>
-</body>
-
-</html>
-
-
-
