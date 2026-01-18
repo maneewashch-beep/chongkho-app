@@ -423,7 +423,6 @@
                     yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล', 'คณะครู/บุคลากร']
                 };
 
-                // ฟังก์ชันจัดรูปแบบระดับชั้น
                 const normalizeLevel = (input) => {
                     if (!input) return 'ไม่ระบุ';
                     const clean = input.toString().replace(/\s+/g, '').toLowerCase();
@@ -436,57 +435,48 @@
                     return input; 
                 };
 
-                // 🟢 กรองปุ่มระดับชั้น: แสดง ป.ตรี เฉพาะสีเหลือง หรือ Admin ที่เลือกดูทั้งหมด
                 const visibleFilterLevels = computed(() => {
                     const contextColor = user.value.role === 'admin' ? adminFilterColor.value : user.value.color;
-                    if (contextColor === 'yellow' || contextColor === 'all') return levels;
+                    // แปลงเป็นตัวพิมพ์เล็กเพื่อเปรียบเทียบ
+                    const colorStr = (contextColor || '').toLowerCase();
+                    if (colorStr === 'yellow' || colorStr === 'all') return levels;
                     return levels.filter(l => l.id !== 'ป.ตรี');
                 });
 
-                // 🟢 กรอง Dropdown ตอนเพิ่มสมาชิก: แสดง ป.ตรี เฉพาะเมื่อเพิ่มให้สีเหลือง
                 const formLevels = computed(() => {
                     let target = user.value.role === 'admin' ? memberForm.value.target_color : user.value.color;
-                    if (target === 'yellow') return levels;
+                    const colorStr = (target || '').toLowerCase();
+                    if (colorStr === 'yellow') return levels;
                     return levels.filter(l => l.id !== 'ป.ตรี');
                 });
 
                 const currentDepartmentOptions = computed(() => {
                     let color = user.value.color;
                     if (user.value.role === 'admin') color = memberForm.value.target_color || 'purple';
-                    return departments[color] || [];
+                    // แปลง key เป็น lowercase เพื่อดึงข้อมูลจาก departments ได้ถูกต้อง
+                    const safeColor = (color || '').toLowerCase();
+                    return departments[safeColor] || [];
                 });
 
                 const isStaff = computed(() => form.value.department === 'คณะครู/บุคลากร');
 
-                // 🟢 Watcher สำหรับฟอร์มเพิ่มสมาชิก (จัดการกรณีเลือกเป็นครู)
-                watch(() => memberForm.value.department, (newVal) => {
-                    if (newVal === 'คณะครู/บุคลากร') {
-                        memberForm.value.level = 'คณะครู/บุคลากร';
-                        memberForm.value.room = '-';
-                    } else if (memberForm.value.level === 'คณะครู/บุคลากร') {
-                        memberForm.value.level = 'ปวช. 1';
-                        memberForm.value.room = ''; 
+                watch(isStaff, (newVal) => {
+                    if (newVal) {
+                        form.value.level = 'คณะครู/บุคลากร';
+                        form.value.room = '-';
+                    } else {
+                        form.value.level = 'ปวช. 1';
+                        form.value.room = ''; 
                     }
                 });
 
-                // --- 🟢 กำหนดสิทธิ์การใช้งาน ---
-                // Staff: ดูได้อย่างเดียว (ไม่อยู่ในเงื่อนไขใดเลยข้างล่างนี้)
-                
-                // สิทธิ์แก้ไข/ลบสมาชิก: ประธาน, รอง, เหรัญญิก, Admin
+                // --- กำหนดสิทธิ์การใช้งาน ---
                 const canEditMembers = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
-                
-                // สิทธิ์เข้าถึงหน้างบประมาณ: ประธาน, รอง, เหรัญญิก, Admin
                 const canAccessBudget = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
-                
-                // สิทธิ์จัดการงบประมาณ (เพิ่ม/ลบ/แก้): เหรัญญิก, Admin
                 const canManageBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
-                
-                // สิทธิ์ตั้งงบเริ่มต้น: เหรัญญิก, Admin
                 const canSetBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
-                
-                // สิทธิ์เบิกจ่าย (Expense): เหรัญญิก, Admin
                 const canWithdraw = computed(() => ['treasurer', 'admin'].includes(user.value.role));
-                // -----------------------------
+                const getDeptOptions = (c) => departments[c] || [];
 
                 const callSheet = async (action, payload = {}) => {
                     try {
@@ -536,7 +526,6 @@
                             callSheet('getBudget')
                         ]);
 
-                        // เติมสีอัตโนมัติหากข้อมูลสีขาดหาย
                         let filtered = Array.isArray(resM) ? resM : [];
                         filtered = filtered.map(m => {
                             if ((!m.color || m.color.trim() === '') && m.department) {
@@ -547,22 +536,27 @@
                                     }
                                 }
                             }
+                            // 🟢 Normalize color data from DB to lowercase for consistency
+                            if(m.color) m.color = m.color.toLowerCase().trim();
                             return m;
                         });
 
-                        // กรองสมาชิกตามสิทธิ์
+                        // 🟢 แก้ไขการกรองสมาชิก: เปรียบเทียบแบบ Lowercase
                         if(user.value.role !== 'admin') {
-                            filtered = filtered.filter(m => m.color === user.value.color);
+                            const userColor = (user.value.color || '').toLowerCase().trim();
+                            filtered = filtered.filter(m => (m.color || '') === userColor);
                         }
                         if(user.value.role === 'admin' && adminFilterColor.value !== 'all') {
-                            filtered = filtered.filter(m => m.color === adminFilterColor.value);
+                            const adminTargetColor = (adminFilterColor.value || '').toLowerCase().trim();
+                            filtered = filtered.filter(m => (m.color || '') === adminTargetColor);
                         }
                         members.value = filtered;
 
-                        // กรองงบประมาณตามสิทธิ์
+                        // กรองงบประมาณ
                         let filteredB = Array.isArray(resB) ? resB : [];
                         if(user.value.role !== 'admin') {
-                            filteredB = filteredB.filter(b => b.color === user.value.color);
+                            const userColor = (user.value.color || '').toLowerCase().trim();
+                            filteredB = filteredB.filter(b => (b.color || '').toLowerCase().trim() === userColor);
                         }
                         budgetList.value = filteredB;
                     } finally {
@@ -599,7 +593,6 @@
                     showAddMemberModal.value = true;
                 };
 
-                // 🟢 ลบสมาชิก: เพิ่มการยืนยันรหัสผ่าน
                 const deleteMember = async (id) => {
                       const { value: password } = await Swal.fire({
                           title: 'ยืนยันรหัสผ่านเพื่อลบ',
@@ -627,9 +620,7 @@
 
                 const openTransactionModal = (mode, data = null) => {
                     transactionMode.value = mode;
-                    // 🟢 ถ้าไม่ใช่ Admin ให้ล็อกสีเป็นสีของตัวเอง
                     const defaultColor = user.value.role === 'admin' ? 'purple' : user.value.color;
-                    
                     transactionForm.value = { description: '', amount: '', type: 'expense', target_color: defaultColor, confirm_password: '' };
                     
                     if (mode === 'edit' && data) {
@@ -652,7 +643,6 @@
                     Swal.fire('สำเร็จ', 'บันทึกข้อมูลแล้ว', 'success');
                 };
 
-                // 🟢 ลบงบประมาณ: เพิ่มการยืนยันรหัสผ่าน
                 const deleteTransaction = async (id) => {
                       const { value: password } = await Swal.fire({
                           title: 'ยืนยันรหัสผ่านเพื่อลบ',
@@ -872,4 +862,5 @@
     </script>
 </body>
 </html>
+
 
