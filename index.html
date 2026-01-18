@@ -379,6 +379,7 @@
 
    <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
+        // 🟢 URL เดิมของคุณ
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDL_PJ2Db4E8AczoG1xA0TRfcJSXhIfXw2cEjd2RhGsenFFWdEXGC382kUv3wopiPS/exec'; 
 
         createApp({
@@ -436,17 +437,13 @@
 
                 const visibleFilterLevels = computed(() => {
                     const contextColor = user.value.role === 'admin' ? adminFilterColor.value : user.value.color;
-                    if (contextColor === 'yellow' || contextColor === 'all') {
-                        return levels;
-                    }
+                    if (contextColor === 'yellow' || contextColor === 'all') return levels;
                     return levels.filter(l => l.id !== 'ป.ตรี');
                 });
 
                 const formLevels = computed(() => {
                     let target = user.value.role === 'admin' ? memberForm.value.target_color : user.value.color;
-                    if (target === 'yellow') {
-                        return levels;
-                    }
+                    if (target === 'yellow') return levels;
                     return levels.filter(l => l.id !== 'ป.ตรี');
                 });
 
@@ -456,27 +453,33 @@
                     return departments[color] || [];
                 });
 
-                const isStaff = computed(() => memberForm.value.department === 'คณะครู/บุคลากร');
+                const isStaff = computed(() => form.value.department === 'คณะครู/บุคลากร');
 
                 watch(isStaff, (newVal) => {
                     if (newVal) {
-                        memberForm.value.level = 'คณะครู/บุคลากร';
-                        memberForm.value.room = '-';
+                        form.value.level = 'คณะครู/บุคลากร';
+                        form.value.room = '-';
                     } else {
-                        memberForm.value.level = 'ปวช. 1';
-                        memberForm.value.room = ''; 
+                        form.value.level = 'ปวช. 1';
+                        form.value.room = ''; 
                     }
                 });
 
-                // 🟢 1 & 3: Permissions for Members and Budget
-                // Staff cannot edit/delete members or manage budget
-                const canEditMembers = computed(() => ['president', 'vice', 'admin', 'treasurer'].includes(user.value.role));
+                // 🟢 กำหนดสิทธิ์ตามเงื่อนไขใหม่
+                // 1. Staff ดูได้อย่างเดียว (ไม่อยู่ใน list นี้)
+                // 2. ประธาน, รอง, เหรัญญิก, Admin แก้ไข/ลบสมาชิกได้
+                const canEditMembers = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
+                
+                // 3. Staff ไม่เห็นหน้างบประมาณ (ไม่อยู่ใน list นี้)
                 const canAccessBudget = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
                 
-                // 🟢 2: Treasurer can manage budget same as admin
+                // 4. เหรัญญิก และ Admin จัดการงบได้ (เพิ่ม/ลบ/แก้)
                 const canManageBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
+                
+                // 5. ตั้งงบเริ่มต้น (ให้สิทธิ์เหมือน Manage Budget)
                 const canSetBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
                 const canWithdraw = computed(() => ['treasurer', 'admin'].includes(user.value.role));
+                
                 const getDeptOptions = (c) => departments[c] || [];
 
                 const callSheet = async (action, payload = {}) => {
@@ -576,7 +579,9 @@
                 };
 
                 const openAddMember = () => {
-                    memberForm.value = { id: null, name: '', student_id: '', level: 'ปวช. 1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false };
+                    // หากไม่ใช่แอดมิน ให้ล็อกสีตาม user ทันที
+                    const defaultColor = user.value.role === 'admin' ? 'purple' : user.value.color;
+                    memberForm.value = { id: null, name: '', student_id: '', level: 'ปวช. 1', room: '', shirt_size: 'M', target_color: defaultColor, department: '', is_paid: false, is_received: false };
                     showAddMemberModal.value = true;
                 };
 
@@ -586,27 +591,30 @@
                     showAddMemberModal.value = true;
                 };
 
-                // 🟢 1: Confirm password before deletion
+                // 🟢 แก้ไข: การลบสมาชิกต้องยืนยันรหัสผ่าน (เหมือนแอดมิน)
                 const deleteMember = async (id) => {
                       const { value: password } = await Swal.fire({
                           title: 'ยืนยันรหัสผ่านเพื่อลบ',
+                          text: "การกระทำนี้ไม่สามารถย้อนกลับได้",
                           input: 'password',
-                          inputLabel: 'กรุณากรอกรหัสผ่านของคุณเพื่อยืนยัน',
+                          inputPlaceholder: 'ใส่รหัสผ่านของคุณ',
+                          icon: 'warning',
                           showCancelButton: true,
                           confirmButtonColor: '#d33',
-                          confirmButtonText: 'ยืนยันลบ',
-                          cancelButtonText: 'ยกเลิก'
+                          cancelButtonColor: '#3085d6',
+                          confirmButtonText: 'ลบข้อมูล',
+                          cancelButtonText: 'ยกเลิก',
+                          inputValidator: (value) => {
+                              if (!value) {
+                                  return 'กรุณาใส่รหัสผ่านเพื่อยืนยัน'
+                              }
+                          }
                       });
 
                       if (password) {
-                          // Verify Password locally (since we have it in user object)
-                          if (password !== user.value.password) {
-                               Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง', 'error');
-                               return;
-                          }
-
-                          Swal.fire({ title: 'กำลังลบข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                          await callSheet('deleteMember', { id });
+                          Swal.fire({ title: 'กำลังตรวจสอบและลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                          // ส่ง confirm_password และ user_id ไปตรวจสอบที่ Backend
+                          await callSheet('deleteMember', { id, confirm_password: password, user_id: user.value.id });
                           await fetchData(false);
                           Swal.fire('สำเร็จ', 'ลบข้อมูลเรียบร้อยแล้ว', 'success');
                       }
@@ -614,7 +622,11 @@
 
                 const openTransactionModal = (mode, data = null) => {
                     transactionMode.value = mode;
-                    transactionForm.value = { description: '', amount: '', type: 'expense', target_color: 'purple', confirm_password: '' };
+                    // 🟢 แก้ไข: ถ้าไม่ใช่ Admin ให้ล็อก target_color เป็นสีของตัวเอง
+                    const defaultColor = user.value.role === 'admin' ? 'purple' : user.value.color;
+                    
+                    transactionForm.value = { description: '', amount: '', type: 'expense', target_color: defaultColor, confirm_password: '' };
+                    
                     if (mode === 'edit' && data) {
                         transactionForm.value = { ...data, confirm_password: '' };
                     } else if (mode === 'set_balance') { 
@@ -623,12 +635,6 @@
                     } else if (mode === 'new') {
                         if (!canWithdraw.value) transactionForm.value.type = 'income';
                     }
-                    
-                    // 🟢 2: Auto-set color for non-admins (Treasurers)
-                    if (user.value.role !== 'admin') {
-                        transactionForm.value.target_color = user.value.color;
-                    }
-                    
                     showTransactionModal.value = true;
                 };
 
@@ -641,21 +647,29 @@
                     Swal.fire('สำเร็จ', 'บันทึกข้อมูลแล้ว', 'success');
                 };
 
+                // 🟢 แก้ไข: การลบงบประมาณต้องยืนยันรหัสผ่าน
                 const deleteTransaction = async (id) => {
-                      const result = await Swal.fire({
-                          title: 'ยืนยันการลบ?',
+                      const { value: password } = await Swal.fire({
+                          title: 'ยืนยันรหัสผ่านเพื่อลบ',
                           text: "ต้องการลบรายการนี้ใช่หรือไม่",
+                          input: 'password',
+                          inputPlaceholder: 'ใส่รหัสผ่านของคุณ',
                           icon: 'warning',
                           showCancelButton: true,
                           confirmButtonColor: '#d33',
                           cancelButtonColor: '#3085d6',
                           confirmButtonText: 'ลบรายการ',
-                          cancelButtonText: 'ยกเลิก'
+                          cancelButtonText: 'ยกเลิก',
+                          inputValidator: (value) => {
+                              if (!value) {
+                                  return 'กรุณาใส่รหัสผ่านเพื่อยืนยัน'
+                              }
+                          }
                       });
 
-                      if(result.isConfirmed) {
+                      if(password) {
                         Swal.fire({ title: 'กำลังลบข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                        await callSheet('deleteTransaction', { id });
+                        await callSheet('deleteTransaction', { id, confirm_password: password, user_id: user.value.id });
                         await fetchData(false);
                         Swal.fire('สำเร็จ', 'ลบรายการเรียบร้อยแล้ว', 'success');
                       }
@@ -774,6 +788,21 @@
                     userList.value = res;
                 };
 
+                const showSizeChart = () => {
+                    Swal.fire({
+                        imageUrl: 'size_chart.jpg', 
+                        imageAlt: 'ตารางไซส์เสื้อ',
+                        showCloseButton: true,
+                        showConfirmButton: false,
+                        width: 'auto',
+                        padding: '1rem', 
+                        customClass: {
+                            popup: 'rounded-[2rem]',
+                            image: 'rounded-xl mt-2 w-auto h-auto max-h-[75vh] mx-auto object-contain shadow-sm' 
+                        }
+                    });
+                };
+
                 const confirmBulkPay = async (targetMembers, isChecked) => {
                     if (!isChecked) return; 
                     
@@ -833,10 +862,11 @@
                     getNavbarClass, getColorName, getRoleName, getBadgeClass, formatCurrency,
                     showAddMemberModal, showTransactionModal, showEditProfileModal, showProfileMenu, transactionMode,
                     confirmBulkPay, confirmBulkPayObj,
-                    visibleFilterLevels, formLevels, isStaff 
+                    visibleFilterLevels, formLevels, showSizeChart, isStaff
                 };
             }
         }).mount('#app');
     </script>
 </body>
 </html>
+
