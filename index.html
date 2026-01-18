@@ -148,7 +148,8 @@
 
                     <div class="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide">
                         <button @click="levelFilter = 'all'" :class="levelFilter === 'all' ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">ทั้งหมด</button>
-                        <button v-for="lvl in levels" :key="lvl.id" @click="levelFilter = lvl.id" :class="levelFilter === lvl.id ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">{{ lvl.name }}</button>
+                        
+                        <button v-for="lvl in visibleFilterLevels" :key="lvl.id" @click="levelFilter = lvl.id" :class="levelFilter === lvl.id ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">{{ lvl.name }}</button>
                     </div>
 
                     <div v-if="filteredMembers.length > 0 && canEditMembers" class="mb-4 p-4 bg-green-50 rounded-2xl border border-green-100 flex items-center gap-3">
@@ -324,9 +325,9 @@
                     <input v-model="memberForm.name" placeholder="ชื่อ-นามสกุล" class="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100" required>
                     <input v-model="memberForm.student_id" placeholder="รหัสนักศึกษา" class="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100">
                     <div class="flex gap-3">
-                        <select v-model="memberForm.level" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option v-for="l in levels" :value="l.id">{{ l.name }}</option></select>
-                        <select v-model="memberForm.room" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option value="" disabled>ห้อง</option><option v-for="n in 10" :key="n" :value="n">{{ n }}</option></select>
-                        <select v-model="memberForm.shirt_size" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="2XL">2XL</option><option value="3XL">3XL</option><option value="4XL">4XL</option><option value="5XL">5XL</option><option value="6XL">6XL</option></select>
+                        <select v-model="memberForm.level" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option v-for="l in formLevels" :value="l.id">{{ l.name }}</option></select>
+                        <select v-model="memberForm.room" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option value="" disabled>ห้อง</option><option v-for="n in 10" :key="n" :value="n">{{ n }}</option><option value="-">-</option></select>
+                        <select v-model="memberForm.shirt_size" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option value="SS">SS</option><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="2XL">2XL</option><option value="3XL">3XL</option><option value="4XL">4XL</option><option value="5XL">5XL</option><option value="6XL">6XL</option></select>
                     </div>
                     
                     <div class="flex gap-4 pt-2">
@@ -379,7 +380,6 @@
 
    <script>
         const { createApp, ref, computed, onMounted } = Vue;
-        // 🟢 URL เดิมของคุณ
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDL_PJ2Db4E8AczoG1xA0TRfcJSXhIfXw2cEjd2RhGsenFFWdEXGC382kUv3wopiPS/exec'; 
 
         createApp({
@@ -404,7 +404,6 @@
                 const transactionForm = ref({ id: null, description: '', amount: '', type: 'expense', target_color: 'purple', confirm_password: '' });
                 const profileForm = ref({ full_name: '', new_password: '' });
 
-                // 🟢 เพิ่ม ป.ตรี ลงในรายการ levels
                 const levels = [ 
                     { id: 'ปวช. 1', name: 'ปวช. 1' }, 
                     { id: 'ปวช. 2', name: 'ปวช. 2' }, 
@@ -424,7 +423,6 @@
                     yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล', 'คณะครู/บุคลากร']
                 };
 
-                // 🟢 อัปเดต normalizeLevel ให้รองรับ ป.ตรี
                 const normalizeLevel = (input) => {
                     if (!input) return 'ไม่ระบุ';
                     const clean = input.toString().replace(/\s+/g, '').toLowerCase();
@@ -436,6 +434,24 @@
                     if (clean === 'ป.ตรี' || clean === 'ปตรี') return 'ป.ตรี';
                     return input; 
                 };
+
+                // 🟢 1. Logic for Filter Buttons
+                const visibleFilterLevels = computed(() => {
+                    const contextColor = user.value.role === 'admin' ? adminFilterColor.value : user.value.color;
+                    if (contextColor === 'yellow' || contextColor === 'all') {
+                        return levels;
+                    }
+                    return levels.filter(l => l.id !== 'ป.ตรี');
+                });
+
+                // 🟢 2. Logic for Add/Edit Form Dropdown
+                const formLevels = computed(() => {
+                    let target = user.value.role === 'admin' ? memberForm.value.target_color : user.value.color;
+                    if (target === 'yellow') {
+                        return levels;
+                    }
+                    return levels.filter(l => l.id !== 'ป.ตรี');
+                });
 
                 const currentDepartmentOptions = computed(() => {
                     let color = user.value.color;
@@ -791,7 +807,8 @@
                     userList, levels, levelFilter, filteredMembers,
                     getNavbarClass, getColorName, getRoleName, getBadgeClass, formatCurrency,
                     showAddMemberModal, showTransactionModal, showEditProfileModal, showProfileMenu, transactionMode,
-                    confirmBulkPay, confirmBulkPayObj
+                    confirmBulkPay, confirmBulkPayObj,
+                    visibleFilterLevels, formLevels 
                 };
             }
         }).mount('#app');
