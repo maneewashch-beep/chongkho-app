@@ -437,7 +437,6 @@
 
                 const visibleFilterLevels = computed(() => {
                     const contextColor = user.value.role === 'admin' ? adminFilterColor.value : user.value.color;
-                    // แปลงเป็นตัวพิมพ์เล็กเพื่อเปรียบเทียบ
                     const colorStr = (contextColor || '').toLowerCase();
                     if (colorStr === 'yellow' || colorStr === 'all') return levels;
                     return levels.filter(l => l.id !== 'ป.ตรี');
@@ -453,24 +452,27 @@
                 const currentDepartmentOptions = computed(() => {
                     let color = user.value.color;
                     if (user.value.role === 'admin') color = memberForm.value.target_color || 'purple';
-                    // แปลง key เป็น lowercase เพื่อดึงข้อมูลจาก departments ได้ถูกต้อง
                     const safeColor = (color || '').toLowerCase();
                     return departments[safeColor] || [];
                 });
 
-                const isStaff = computed(() => form.value.department === 'คณะครู/บุคลากร');
+                // 🟢 แก้ไข: เปลี่ยนจาก form.value เป็น memberForm.value
+                const isStaff = computed(() => memberForm.value.department === 'คณะครู/บุคลากร');
 
+                // 🟢 แก้ไข: เปลี่ยนจาก form.value เป็น memberForm.value
                 watch(isStaff, (newVal) => {
                     if (newVal) {
-                        form.value.level = 'คณะครู/บุคลากร';
-                        form.value.room = '-';
+                        memberForm.value.level = 'คณะครู/บุคลากร';
+                        memberForm.value.room = '-';
                     } else {
-                        form.value.level = 'ปวช. 1';
-                        form.value.room = ''; 
+                        // ถ้าไม่ใช่ Staff แต่ level ยังเป็น Staff อยู่ ให้รีเซ็ตกลับเป็นค่าเริ่มต้น
+                        if (memberForm.value.level === 'คณะครู/บุคลากร') {
+                            memberForm.value.level = 'ปวช. 1';
+                            memberForm.value.room = ''; 
+                        }
                     }
                 });
 
-                // --- กำหนดสิทธิ์การใช้งาน ---
                 const canEditMembers = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
                 const canAccessBudget = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
                 const canManageBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
@@ -536,12 +538,10 @@
                                     }
                                 }
                             }
-                            // 🟢 Normalize color data from DB to lowercase for consistency
                             if(m.color) m.color = m.color.toLowerCase().trim();
                             return m;
                         });
 
-                        // 🟢 แก้ไขการกรองสมาชิก: เปรียบเทียบแบบ Lowercase
                         if(user.value.role !== 'admin') {
                             const userColor = (user.value.color || '').toLowerCase().trim();
                             filtered = filtered.filter(m => (m.color || '') === userColor);
@@ -552,7 +552,6 @@
                         }
                         members.value = filtered;
 
-                        // กรองงบประมาณ
                         let filteredB = Array.isArray(resB) ? resB : [];
                         if(user.value.role !== 'admin') {
                             const userColor = (user.value.color || '').toLowerCase().trim();
@@ -862,5 +861,6 @@
     </script>
 </body>
 </html>
+
 
 
