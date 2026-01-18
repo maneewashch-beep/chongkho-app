@@ -326,11 +326,7 @@
                     <div class="flex gap-3">
                         <select v-model="memberForm.level" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option v-for="l in levels" :value="l.id">{{ l.name }}</option></select>
                         <select v-model="memberForm.room" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option value="" disabled>ห้อง</option><option v-for="n in 10" :key="n" :value="n">{{ n }}</option></select>
-                        <select v-model="memberForm.shirt_size" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100">
-                            <option value="SS">SS</option>
-                            <option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="2XL">2XL</option><option value="3XL">3XL</option><option value="4XL">4XL</option>
-                            <option value="5XL">5XL</option><option value="6XL">6XL</option>
-                        </select>
+                        <select v-model="memberForm.shirt_size" class="w-1/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100"><option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="XL">XL</option><option value="2XL">2XL</option><option value="3XL">3XL</option><option value="4XL">4XL</option><option value="5XL">5XL</option><option value="6XL">6XL</option></select>
                     </div>
                     
                     <div class="flex gap-4 pt-2">
@@ -408,27 +404,27 @@
                 const transactionForm = ref({ id: null, description: '', amount: '', type: 'expense', target_color: 'purple', confirm_password: '' });
                 const profileForm = ref({ full_name: '', new_password: '' });
 
+                // 🟢 เพิ่ม ป.ตรี ลงในรายการ levels
                 const levels = [ 
                     { id: 'ปวช. 1', name: 'ปวช. 1' }, 
                     { id: 'ปวช. 2', name: 'ปวช. 2' }, 
                     { id: 'ปวช. 3', name: 'ปวช. 3' }, 
                     { id: 'ปวส. 1', name: 'ปวส. 1' }, 
                     { id: 'ปวส. 2', name: 'ปวส. 2' },
-                    // 🟢 4. เพิ่ม คณะครู/บุคลากร ในตัวเลือกระดับชั้น
+                    { id: 'ป.ตรี', name: 'ป.ตรี' },
                     { id: 'คณะครู/บุคลากร', name: 'ครู/บุคลากร' }
                 ];
 
                 const departments = {
-                    // 🟢 4. เพิ่ม คณะครู/บุคลากร ในแต่ละสังกัดสี
                     orange: ['ช่างไฟฟ้า', 'อาหารและโภชนาการ', 'คณะครู/บุคลากร'], 
                     green: ['ช่างยนต์', 'เทคโนโลยีสารสนเทศ', 'คณะครู/บุคลากร'], 
-                    // 🟢 5. เพิ่ม แผนกวิชา การท่องเที่ยว แปรรูปอาหาร ไมซ์และอีเวนท์ และท่องเที่ยวเชิงสุขภาพ ในสังกัดสีม่วง
                     purple: ['เทคโนโลยีฐานวิทยาศาสตร์', 'การท่องเที่ยว', 'แปรรูปอาหาร', 'ไมซ์และอีเวนท์', 'ท่องเที่ยวเชิงสุขภาพ', 'คณะครู/บุคลากร'],
                     skyblue: ['ช่างอิเล็กทรอนิกส์', 'เทคโนโลยีธุรกิจดิจิทัล', 'การโรงแรม', 'คณะครู/บุคลากร'], 
                     blue: ['ช่างก่อสร้าง', 'การตลาด', 'คณะครู/บุคลากร'], 
                     yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล', 'คณะครู/บุคลากร']
                 };
 
+                // 🟢 อัปเดต normalizeLevel ให้รองรับ ป.ตรี
                 const normalizeLevel = (input) => {
                     if (!input) return 'ไม่ระบุ';
                     const clean = input.toString().replace(/\s+/g, '').toLowerCase();
@@ -437,6 +433,7 @@
                     if (clean === 'voc3' || clean === 'ปวช.3') return 'ปวช. 3';
                     if (clean === 'hvoc1' || clean === 'dip1' || clean === 'ปวส.1') return 'ปวส. 1';
                     if (clean === 'hvoc2' || clean === 'dip2' || clean === 'ปวส.2') return 'ปวส. 2';
+                    if (clean === 'ป.ตรี' || clean === 'ปตรี') return 'ป.ตรี';
                     return input; 
                 };
 
@@ -736,9 +733,8 @@
                     userList.value = res;
                 };
 
-                // 🟢 Function for Bulk Pay Logic
                 const confirmBulkPay = async (targetMembers, isChecked) => {
-                    if (!isChecked) return; // Only trigger action on check (to mark paid)
+                    if (!isChecked) return; 
                     
                     const toPay = targetMembers.filter(m => !m.is_paid);
                     if (toPay.length === 0) {
@@ -760,10 +756,6 @@
                     if (result.isConfirmed) {
                         Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                         
-                        // Process requests sequentially to avoid rate limits (or use Promise.all with chunks if backend allows)
-                        // Note: For Google Apps Script, singular updates are safer but slower. 
-                        // Visual update first for UX? No, let's be safe.
-                        
                         let successCount = 0;
                         for (const member of toPay) {
                             try {
@@ -777,12 +769,10 @@
                         await fetchData(false);
                         Swal.fire('สำเร็จ', `บันทึกข้อมูลเรียบร้อย ${successCount} คน`, 'success');
                     } else {
-                        // Revert checkbox visual if cancelled (reload data)
                         await fetchData(false);
                     }
                 };
 
-                // Helper to flatten room object values for department bulk pay
                 const confirmBulkPayObj = (roomsObj, isChecked) => {
                     const allMembers = Object.values(roomsObj).flat();
                     confirmBulkPay(allMembers, isChecked);
@@ -801,9 +791,10 @@
                     userList, levels, levelFilter, filteredMembers,
                     getNavbarClass, getColorName, getRoleName, getBadgeClass, formatCurrency,
                     showAddMemberModal, showTransactionModal, showEditProfileModal, showProfileMenu, transactionMode,
-                    // 🟢 Exported new functions
                     confirmBulkPay, confirmBulkPayObj
                 };
             }
         }).mount('#app');
     </script>
+</body>
+</html>
