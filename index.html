@@ -503,17 +503,15 @@
 
                 const currentUserRole = computed(() => (user.value.role || '').toLowerCase());
 
-                // 🟢 แก้ไขข้อ 1: อนุญาตให้ Staff แก้ไขข้อมูลได้ (เพิ่ม 'staff' ใน list)
+                // 🟢 แก้ไข: นำ 'staff' ออกจาก canEditMembers (กลับสู่ Read-only)
                 const canEditMembers = computed(() => 
-                    ['admin', 'president', 'vice', 'staff'].includes(currentUserRole.value)
+                    ['admin', 'president', 'vice'].includes(currentUserRole.value)
                 );
 
-                // 🟢 เพิ่ม: สิทธิ์ในการลบ (Staff ไม่มีสิทธิ์นี้)
                 const canDeleteMembers = computed(() => 
                     ['admin', 'president', 'vice'].includes(currentUserRole.value)
                 );
 
-                // 🟢 แก้ไข: เพิ่ม President และ Vice ให้มองเห็นเมนูงบประมาณได้ (ตามความต้องการก่อนหน้า)
                 const canAccessBudget = computed(() => 
                     ['admin', 'treasurer', 'president', 'vice'].includes(currentUserRole.value)
                 );
@@ -667,63 +665,7 @@
                     return res;
                 });
 
-                // 🟢 แก้ไขข้อ 2: Logic การบันทึกสำหรับ Staff ที่ต้องยืนยันตัวตนหัวหน้า
                 const saveMember = async () => {
-                    // ถ้าเป็น Staff ให้ตรวจสอบสิทธิ์หัวหน้าก่อน
-                    if (currentUserRole.value === 'staff') {
-                        const { value: formValues } = await Swal.fire({
-                            title: 'ยืนยันสิทธิ์หัวหน้า',
-                            html:
-                                '<div class="text-left text-sm mb-4 text-gray-500">กรุณาให้ประธาน รองประธาน หรือแอดมิน กรอกรหัสผ่านเพื่ออนุมัติการแก้ไข</div>' +
-                                '<input id="swal-input1" class="swal2-input" placeholder="ชื่อผู้ใช้ (หัวหน้า)">' +
-                                '<input id="swal-input2" class="swal2-input" type="password" placeholder="รหัสผ่าน (หัวหน้า)">',
-                            focusConfirm: false,
-                            showCancelButton: true,
-                            confirmButtonText: 'ตรวจสอบ',
-                            cancelButtonText: 'ยกเลิก',
-                            preConfirm: () => {
-                                return [
-                                    document.getElementById('swal-input1').value,
-                                    document.getElementById('swal-input2').value
-                                ]
-                            }
-                        });
-
-                        if (formValues) {
-                            const [supUser, supPass] = formValues;
-                            if(!supUser || !supPass) return;
-
-                            Swal.fire({ title: 'กำลังตรวจสอบสิทธิ์...', didOpen: () => Swal.showLoading() });
-                            // ใช้ API Login เดิมเพื่อตรวจสอบ User/Pass ของหัวหน้า
-                            const res = await callSheet('login', { username: supUser, password: supPass });
-
-                            if (res.status === 'success') {
-                                const supRole = (res.user.role || '').toLowerCase();
-                                const supColor = cleanStr(res.user.color || '');
-                                const myColor = cleanStr(user.value.color || '');
-
-                                // ตรวจสอบว่า User ที่มา Approve เป็น Admin หรือเป็นหัวหน้าของสีเดียวกัน
-                                const isAuthorized = 
-                                    supRole === 'admin' || 
-                                    (['president', 'vice'].includes(supRole) && supColor === myColor);
-
-                                if (isAuthorized) {
-                                    // ผ่านการตรวจสอบ -> ทำการบันทึก
-                                    await proceedSave();
-                                } else {
-                                    Swal.fire('ปฏิเสธ', 'ผู้ใช้นี้ไม่มีสิทธิ์อนุมัติการแก้ไขของสีนี้', 'error');
-                                }
-                            } else {
-                                Swal.fire('ผิดพลาด', 'ชื่อผู้ใช้หรือรหัสผ่านหัวหน้าไม่ถูกต้อง', 'error');
-                            }
-                        }
-                    } else {
-                        // ถ้าไม่ใช่ Staff (เป็น Admin/Pres/Vice) บันทึกได้เลย
-                        await proceedSave();
-                    }
-                };
-
-                const proceedSave = async () => {
                       Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                       const payload = { ...memberForm.value, user_id: user.value.id };
                       await callSheet('saveMember', payload);
