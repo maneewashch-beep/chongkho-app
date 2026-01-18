@@ -146,9 +146,21 @@
                         </div>
                     </div>
 
-                    <div class="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide">
-                        <button @click="levelFilter = 'all'" :class="levelFilter === 'all' ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">ทั้งหมด</button>
-                        <button v-for="lvl in visibleFilterLevels" :key="lvl.id" @click="levelFilter = lvl.id" :class="levelFilter === lvl.id ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">{{ lvl.name }}</button>
+                    <div class="flex flex-col gap-4 mb-6">
+                        <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                            <button @click="levelFilter = 'all'" :class="levelFilter === 'all' ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">ทุกระดับชั้น</button>
+                            <button v-for="lvl in visibleFilterLevels" :key="lvl.id" @click="levelFilter = lvl.id" :class="levelFilter === lvl.id ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">{{ lvl.name }}</button>
+                        </div>
+
+                        <div class="w-full md:w-1/2 lg:w-1/3">
+                            <div class="relative">
+                                <span class="absolute left-3 top-2.5 text-slate-400">🏢</span>
+                                <select v-model="departmentFilter" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:ring-2 focus:ring-purple-100 transition cursor-pointer">
+                                    <option value="all">แสดงทุกแผนกวิชา</option>
+                                    <option v-for="dept in uniqueDepartments" :key="dept" :value="dept">{{ dept }}</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <div v-if="filteredMembers.length > 0 && canEditMembers" class="mb-4 p-4 bg-green-50 rounded-2xl border border-green-100 flex items-center gap-3">
@@ -398,6 +410,9 @@
                 const userList = ref([]);
                 const levelFilter = ref('all');
                 const adminFilterColor = ref('all');
+                
+                // 🟢 เพิ่ม: ตัวแปรสำหรับกรองแผนก
+                const departmentFilter = ref('all');
 
                 const authForm = ref({ username: '', password: '', full_name: '', color: '', role: '' });
                 const memberForm = ref({ id: null, name: '', student_id: '', level: 'ปวช. 1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false });
@@ -447,6 +462,12 @@
                     if (clean === 'ป.ตรี' || clean === 'ปตรี') return 'ป.ตรี';
                     return input; 
                 };
+
+                // 🟢 เพิ่ม: Computed property สำหรับดึงรายชื่อแผนกทั้งหมดที่มีในข้อมูลปัจจุบัน (ใช้สำหรับ Dropdown filter)
+                const uniqueDepartments = computed(() => {
+                    // ใช้ Set เพื่อดึงค่าที่ไม่ซ้ำ และกรองเอาเฉพาะที่มีค่า
+                    return [...new Set(members.value.map(m => m.department).filter(Boolean))].sort();
+                });
 
                 const visibleFilterLevels = computed(() => {
                     const contextColor = user.value.role === 'admin' ? adminFilterColor.value : user.value.color;
@@ -526,7 +547,9 @@
                     }
                 };
 
-                // 🟢 แก้ไข: fetchData ให้รองรับการกรองที่ยืดหยุ่นขึ้น
+                // 🟢 fetchData: Logic เดิมครอบคลุม Requirement ข้อ 1 แล้ว
+                // โดยเฉพาะส่วนที่เช็ค userRole !== 'admin' แล้วกรองสีทิ้ง
+                // ทำให้ Staff/President จะไม่มีทางเห็นข้อมูลสีอื่นได้เลย
                 const fetchData = async (showLoading = false) => {
                     if (!token.value) return;
 
@@ -542,26 +565,18 @@
 
                         let filtered = Array.isArray(resM) ? resM : [];
                         filtered = filtered.map(m => {
-                            // Trim ข้อมูลเบื้องต้น
                             if (m.department) m.department = m.department.trim();
-                            
-                            // 2. ถ้าสีเป็นภาษาไทย ให้แปลงเป็นอังกฤษ
                             if (m.color && colorMap[m.color.trim()]) {
                                 m.color = colorMap[m.color.trim()];
                             }
-
-                            // 3. ถ้าไม่มีสี ให้ลองหาจากแผนก (แบบยืดหยุ่น)
                             if ((!m.color || m.color.trim() === '') && m.department) {
                                 for (const [col, deptList] of Object.entries(departments)) {
-                                    // ใช้ some + trim เพื่อเทียบชื่อแผนกให้แม่นยำขึ้น
                                     if (deptList.some(d => d.trim() === m.department)) {
                                         m.color = col; 
                                         break;
                                     }
                                 }
                             }
-                            
-                            // 4. บังคับให้สีเป็นตัวพิมพ์เล็กเสมอ
                             if(m.color) m.color = cleanStr(m.color);
                             return m;
                         });
@@ -569,19 +584,20 @@
                         const userRole = (user.value.role || '').toLowerCase();
                         const userColor = cleanStr(user.value.color);
 
-                        // Logic การกรองสมาชิก
+                        // 🟢 จุดสำคัญ: การกรองสิทธิ์ (ข้อ 1)
                         if(userRole !== 'admin') {
-                            // Staff/President/Vice/Treasurer เห็นแค่สีตัวเอง
+                            // ถ้าไม่ใช่ Admin จะเห็นได้แค่สีตัวเองเท่านั้น
                             filtered = filtered.filter(m => (m.color || '') === userColor);
                         } else if (userRole === 'admin' && adminFilterColor.value !== 'all') {
                             const adminTarget = cleanStr(adminFilterColor.value);
                             filtered = filtered.filter(m => (m.color || '') === adminTarget);
                         }
                         members.value = filtered;
+                        
+                        // Reset ตัวกรองแผนกเมื่อข้อมูลเปลี่ยน
+                        departmentFilter.value = 'all';
 
-                        // Logic การกรองงบประมาณ
                         let filteredB = Array.isArray(resB) ? resB : [];
-                        // แปลงสีในงบประมาณเป็นอังกฤษด้วย
                         filteredB = filteredB.map(b => {
                              if (b.color && colorMap[b.color.trim()]) b.color = colorMap[b.color.trim()];
                              return b;
@@ -600,7 +616,6 @@
                     }
                 };
 
-                // 🟢 แก้ไข: loadUsers ตรวจสอบข้อมูลก่อนแสดง
                 const loadUsers = async () => {
                     currentTab.value = 'users';
                     Swal.fire({ title: 'กำลังโหลดผู้ใช้...', didOpen: () => Swal.showLoading() });
@@ -621,8 +636,13 @@
 
                 const filteredMembers = computed(() => {
                     let res = members.value;
+                    // กรอง Level
                     if (levelFilter.value !== 'all') {
                         res = res.filter(m => normalizeLevel(m.level) === levelFilter.value);
+                    }
+                    // 🟢 เพิ่ม: กรอง Department (ข้อ 2)
+                    if (departmentFilter.value !== 'all') {
+                        res = res.filter(m => m.department === departmentFilter.value);
                     }
                     return res;
                 });
@@ -751,9 +771,9 @@
                 const resetPassword = async (id, username) => {
                     const { value: newPassword } = await Swal.fire({ title: `รีเซ็ตรหัสของ: ${username}`, input: 'text', inputLabel: 'รหัสผ่านใหม่', showCancelButton: true });
                     if (newPassword) {
-                         Swal.fire({ title: 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                         await callSheet('updateProfile', { id: id, new_password: newPassword });
-                         Swal.fire('สำเร็จ', 'รีเซ็ตรหัสแล้ว', 'success');
+                          Swal.fire({ title: 'กำลังดำเนินการ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                          await callSheet('updateProfile', { id: id, new_password: newPassword });
+                          Swal.fire('สำเร็จ', 'รีเซ็ตรหัสแล้ว', 'success');
                     }
                 };
 
@@ -778,10 +798,16 @@
 
                 const generateSummary = () => {
                     const summary = {};
+                    const deptTotals = {}; // 🟢 เพิ่ม: เก็บยอดรวมแยกแผนก
+
                     filteredMembers.value.forEach(m => {
                         const dept = m.department || 'ไม่ระบุแผนก';
                         const lvlName = normalizeLevel(m.level); 
                         const roomName = m.room ? `ห้อง ${m.room}` : 'ไม่ระบุห้อง';
+
+                        // Calculate Department Totals
+                        if (!deptTotals[dept]) deptTotals[dept] = 0;
+                        deptTotals[dept]++;
 
                         if (!summary[dept]) summary[dept] = {};
                         if (!summary[dept][lvlName]) summary[dept][lvlName] = {};
@@ -794,9 +820,27 @@
                     });
 
                     let html = '<div class="overflow-y-auto max-h-[60vh] text-left text-sm">';
+                    
+                    // 🟢 เพิ่ม: ส่วนแสดงตารางสรุปยอดแยกตามแผนก (ข้อ 3)
+                    if (Object.keys(deptTotals).length > 0) {
+                        html += '<div class="mb-4 bg-yellow-50 p-4 rounded-xl border border-yellow-200 shadow-sm">';
+                        html += '<h3 class="font-bold text-lg mb-2 text-yellow-800 border-b border-yellow-200 pb-2">📊 สรุปยอดรวมแยกตามแผนก</h3>';
+                        html += '<table class="w-full text-sm">';
+                        html += '<thead class="text-slate-500 font-bold"><tr class="text-left"><th>แผนกวิชา</th><th class="text-right">จำนวน (ตัว)</th></tr></thead>';
+                        html += '<tbody class="divide-y divide-yellow-200">';
+                        let grandTotal = 0;
+                        for (const [dept, total] of Object.entries(deptTotals)) {
+                            html += `<tr><td class="py-1 text-slate-700">${dept}</td><td class="py-1 text-right font-bold text-slate-800">${total}</td></tr>`;
+                            grandTotal += total;
+                        }
+                        html += `<tr class="bg-yellow-100/50"><td class="py-2 font-bold text-slate-800">รวมทั้งหมด</td><td class="py-2 text-right font-bold text-indigo-600 text-lg">${grandTotal}</td></tr>`;
+                        html += '</tbody></table></div>';
+                        html += '<hr class="border-slate-200 mb-4">';
+                    }
 
+                    // Existing Detailed Breakdown
                     for (const [dept, levels] of Object.entries(summary)) {
-                        html += `<h3 class="font-bold text-base mt-4 mb-2 bg-slate-100 p-2 rounded text-slate-700 border-l-4 border-purple-500">${dept}</h3>`;
+                        html += `<h3 class="font-bold text-base mt-4 mb-2 bg-slate-100 p-2 rounded text-slate-700 border-l-4 border-purple-500 flex justify-between items-center"><span>${dept}</span> <span class="text-xs bg-white px-2 py-0.5 rounded border shadow-sm">รวม ${deptTotals[dept]}</span></h3>`;
                         for (const [lvl, rooms] of Object.entries(levels)) {
                             html += `<h4 class="font-bold text-slate-600 mt-2 ml-2 text-xs bg-slate-50 p-1 rounded inline-block border border-slate-200">${lvl}</h4>`;
                             html += `<table class="w-full border-collapse border border-slate-200 mt-1 mb-3 text-center text-xs">`;
@@ -904,7 +948,9 @@
                     getNavbarClass, getColorName, getRoleName, getBadgeClass, formatCurrency,
                     showAddMemberModal, showTransactionModal, showEditProfileModal, showProfileMenu, transactionMode,
                     confirmBulkPay, confirmBulkPayObj,
-                    visibleFilterLevels, formLevels, showSizeChart, isStaff
+                    visibleFilterLevels, formLevels, showSizeChart, isStaff,
+                    // 🟢 Export เพิ่ม
+                    departmentFilter, uniqueDepartments
                 };
             }
         }).mount('#app');
