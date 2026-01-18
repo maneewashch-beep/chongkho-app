@@ -159,8 +159,13 @@
                             <button v-for="lvl in visibleFilterLevels" :key="lvl.id" @click="levelFilter = lvl.id" :class="levelFilter === lvl.id ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">{{ lvl.name }}</button>
                         </div>
 
-                        <div class="w-full md:w-1/2 lg:w-1/3">
-                            <div class="relative">
+                        <div class="flex flex-col md:flex-row gap-4">
+                            <div class="w-full md:w-1/2 lg:w-1/3 relative">
+                                <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+                                <input v-model="searchQuery" type="text" placeholder="ค้นหาชื่อ หรือ รหัสนักศึกษา..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:ring-2 focus:ring-purple-100 transition">
+                            </div>
+
+                            <div class="w-full md:w-1/2 lg:w-1/3 relative">
                                 <span class="absolute left-3 top-2.5 text-slate-400">🏢</span>
                                 <select v-model="departmentFilter" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 outline-none focus:ring-2 focus:ring-purple-100 transition cursor-pointer">
                                     <option value="all">แสดงทุกแผนกวิชา</option>
@@ -249,7 +254,7 @@
             </div>
 
             <div v-if="currentTab === 'budget'" class="animate-fade-in-up">
-                <div class="glass-card p-6 md:p-8 rounded-[2rem]">
+               <div class="glass-card p-6 md:p-8 rounded-[2rem]">
                     <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-800">งบประมาณ</h2>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                         <div class="bg-green-50 p-6 rounded-2xl text-center border border-green-100 shadow-sm"><div class="text-sm text-green-600 font-bold mb-1 uppercase tracking-wide">รายรับ</div><div class="text-3xl font-bold text-green-700">{{ formatCurrency(totalIncome) }}</div></div>
@@ -285,7 +290,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
+               </div>
             </div>
 
             <div v-if="currentTab === 'users'" class="animate-fade-in-up">
@@ -419,6 +424,7 @@
                 const levelFilter = ref('all');
                 const adminFilterColor = ref('all');
                 const departmentFilter = ref('all');
+                const searchQuery = ref(''); // 🟢 2. Search Query Variable
 
                 const authForm = ref({ username: '', password: '', full_name: '', color: '', role: '' });
                 const memberForm = ref({ id: null, name: '', student_id: '', level: 'ปวช. 1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false });
@@ -503,9 +509,8 @@
 
                 const currentUserRole = computed(() => (user.value.role || '').toLowerCase());
 
-                // 🟢 แก้ไข: ลบ 'staff' ออกจาก canEditMembers (กลับสู่ Read-only)
                 const canEditMembers = computed(() => 
-                    ['admin', 'president', 'vice'].includes(currentUserRole.value)
+                    ['admin', 'president', 'vice', 'staff'].includes(currentUserRole.value)
                 );
 
                 const canDeleteMembers = computed(() => 
@@ -662,10 +667,70 @@
                     if (departmentFilter.value !== 'all') {
                         res = res.filter(m => m.department === departmentFilter.value);
                     }
+
+                    // 🟢 3. เพิ่ม Logic การกรองด้วย Search Query
+                    if (searchQuery.value) {
+                        const query = searchQuery.value.toLowerCase();
+                        res = res.filter(m => 
+                            (m.name && m.name.toLowerCase().includes(query)) || 
+                            (m.student_id && m.student_id.toString().toLowerCase().includes(query))
+                        );
+                    }
+
                     return res;
                 });
 
                 const saveMember = async () => {
+                    if (currentUserRole.value === 'staff') {
+                        const { value: formValues } = await Swal.fire({
+                            title: 'ยืนยันสิทธิ์หัวหน้า',
+                            html:
+                                '<div class="text-left text-sm mb-4 text-gray-500">กรุณาให้ประธาน รองประธาน หรือแอดมิน กรอกรหัสผ่านเพื่ออนุมัติการแก้ไข</div>' +
+                                '<input id="swal-input1" class="swal2-input" placeholder="ชื่อผู้ใช้ (หัวหน้า)">' +
+                                '<input id="swal-input2" class="swal2-input" type="password" placeholder="รหัสผ่าน (หัวหน้า)">',
+                            focusConfirm: false,
+                            showCancelButton: true,
+                            confirmButtonText: 'ตรวจสอบ',
+                            cancelButtonText: 'ยกเลิก',
+                            preConfirm: () => {
+                                return [
+                                    document.getElementById('swal-input1').value,
+                                    document.getElementById('swal-input2').value
+                                ]
+                            }
+                        });
+
+                        if (formValues) {
+                            const [supUser, supPass] = formValues;
+                            if(!supUser || !supPass) return;
+
+                            Swal.fire({ title: 'กำลังตรวจสอบสิทธิ์...', didOpen: () => Swal.showLoading() });
+                            const res = await callSheet('login', { username: supUser, password: supPass });
+
+                            if (res.status === 'success') {
+                                const supRole = (res.user.role || '').toLowerCase();
+                                const supColor = cleanStr(res.user.color || '');
+                                const myColor = cleanStr(user.value.color || '');
+
+                                const isAuthorized = 
+                                    supRole === 'admin' || 
+                                    (['president', 'vice'].includes(supRole) && supColor === myColor);
+
+                                if (isAuthorized) {
+                                    await proceedSave();
+                                } else {
+                                    Swal.fire('ปฏิเสธ', 'ผู้ใช้นี้ไม่มีสิทธิ์อนุมัติการแก้ไขของสีนี้', 'error');
+                                }
+                            } else {
+                                Swal.fire('ผิดพลาด', 'ชื่อผู้ใช้หรือรหัสผ่านหัวหน้าไม่ถูกต้อง', 'error');
+                            }
+                        }
+                    } else {
+                        await proceedSave();
+                    }
+                };
+
+                const proceedSave = async () => {
                       Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                       const payload = { ...memberForm.value, user_id: user.value.id };
                       await callSheet('saveMember', payload);
@@ -966,8 +1031,9 @@
                     visibleFilterLevels, formLevels, showSizeChart, isStaff,
                     departmentFilter, uniqueDepartments,
                     showPassword,
+                    canDeleteMembers,
                     // 🟢 Export เพิ่ม
-                    canDeleteMembers
+                    searchQuery
                 };
             }
         }).mount('#app');
