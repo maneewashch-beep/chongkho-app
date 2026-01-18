@@ -148,7 +148,6 @@
 
                     <div class="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide">
                         <button @click="levelFilter = 'all'" :class="levelFilter === 'all' ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">ทั้งหมด</button>
-                        
                         <button v-for="lvl in visibleFilterLevels" :key="lvl.id" @click="levelFilter = lvl.id" :class="levelFilter === lvl.id ? 'bg-slate-800 text-white shadow-md' : 'bg-white border text-slate-600 hover:bg-slate-50'" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all">{{ lvl.name }}</button>
                     </div>
 
@@ -295,7 +294,7 @@
         </div>
 
         <div v-if="showEditProfileModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-            <div class="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl animate-fade-in-up">
+             <div class="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl animate-fade-in-up">
                 <h3 class="text-2xl font-bold mb-6">แก้ไขข้อมูลส่วนตัว</h3>
                 <form @submit.prevent="updateProfile" class="space-y-6">
                     <div class="flex justify-center mb-6">
@@ -379,7 +378,7 @@
     </div>
 
    <script>
-        const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted, watch } = Vue;
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDL_PJ2Db4E8AczoG1xA0TRfcJSXhIfXw2cEjd2RhGsenFFWdEXGC382kUv3wopiPS/exec'; 
 
         createApp({
@@ -435,7 +434,6 @@
                     return input; 
                 };
 
-                // 🟢 1. Logic for Filter Buttons
                 const visibleFilterLevels = computed(() => {
                     const contextColor = user.value.role === 'admin' ? adminFilterColor.value : user.value.color;
                     if (contextColor === 'yellow' || contextColor === 'all') {
@@ -444,7 +442,6 @@
                     return levels.filter(l => l.id !== 'ป.ตรี');
                 });
 
-                // 🟢 2. Logic for Add/Edit Form Dropdown
                 const formLevels = computed(() => {
                     let target = user.value.role === 'admin' ? memberForm.value.target_color : user.value.color;
                     if (target === 'yellow') {
@@ -459,8 +456,24 @@
                     return departments[color] || [];
                 });
 
+                const isStaff = computed(() => memberForm.value.department === 'คณะครู/บุคลากร');
+
+                watch(isStaff, (newVal) => {
+                    if (newVal) {
+                        memberForm.value.level = 'คณะครู/บุคลากร';
+                        memberForm.value.room = '-';
+                    } else {
+                        memberForm.value.level = 'ปวช. 1';
+                        memberForm.value.room = ''; 
+                    }
+                });
+
+                // 🟢 1 & 3: Permissions for Members and Budget
+                // Staff cannot edit/delete members or manage budget
                 const canEditMembers = computed(() => ['president', 'vice', 'admin', 'treasurer'].includes(user.value.role));
                 const canAccessBudget = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
+                
+                // 🟢 2: Treasurer can manage budget same as admin
                 const canManageBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
                 const canSetBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
                 const canWithdraw = computed(() => ['treasurer', 'admin'].includes(user.value.role));
@@ -573,19 +586,25 @@
                     showAddMemberModal.value = true;
                 };
 
+                // 🟢 1: Confirm password before deletion
                 const deleteMember = async (id) => {
-                      const result = await Swal.fire({
-                          title: 'ยืนยันการลบ?',
-                          text: "ต้องการลบข้อมูลสมาชิกใช่หรือไม่",
-                          icon: 'warning',
+                      const { value: password } = await Swal.fire({
+                          title: 'ยืนยันรหัสผ่านเพื่อลบ',
+                          input: 'password',
+                          inputLabel: 'กรุณากรอกรหัสผ่านของคุณเพื่อยืนยัน',
                           showCancelButton: true,
                           confirmButtonColor: '#d33',
-                          cancelButtonColor: '#3085d6',
-                          confirmButtonText: 'ลบข้อมูล',
+                          confirmButtonText: 'ยืนยันลบ',
                           cancelButtonText: 'ยกเลิก'
                       });
 
-                      if (result.isConfirmed) {
+                      if (password) {
+                          // Verify Password locally (since we have it in user object)
+                          if (password !== user.value.password) {
+                               Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง', 'error');
+                               return;
+                          }
+
                           Swal.fire({ title: 'กำลังลบข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                           await callSheet('deleteMember', { id });
                           await fetchData(false);
@@ -604,6 +623,12 @@
                     } else if (mode === 'new') {
                         if (!canWithdraw.value) transactionForm.value.type = 'income';
                     }
+                    
+                    // 🟢 2: Auto-set color for non-admins (Treasurers)
+                    if (user.value.role !== 'admin') {
+                        transactionForm.value.target_color = user.value.color;
+                    }
+                    
                     showTransactionModal.value = true;
                 };
 
@@ -808,7 +833,7 @@
                     getNavbarClass, getColorName, getRoleName, getBadgeClass, formatCurrency,
                     showAddMemberModal, showTransactionModal, showEditProfileModal, showProfileMenu, transactionMode,
                     confirmBulkPay, confirmBulkPayObj,
-                    visibleFilterLevels, formLevels 
+                    visibleFilterLevels, formLevels, isStaff 
                 };
             }
         }).mount('#app');
