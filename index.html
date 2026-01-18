@@ -83,7 +83,14 @@
                 </div>
                 <form @submit.prevent="authAction" class="space-y-3">
                     <input v-model="authForm.username" type="text" placeholder="ชื่อผู้ใช้ (Username)" class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none text-sm focus:ring-2 focus:ring-purple-200 transition" required>
-                    <input v-model="authForm.password" type="password" placeholder="รหัสผ่าน (Password)" class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none text-sm focus:ring-2 focus:ring-purple-200 transition" required>
+                    
+                    <div class="relative">
+                        <input v-model="authForm.password" :type="showPassword ? 'text' : 'password'" placeholder="รหัสผ่าน (Password)" class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none text-sm focus:ring-2 focus:ring-purple-200 transition" required>
+                        <button type="button" @click="showPassword = !showPassword" class="absolute right-3 top-3 text-slate-400 hover:text-purple-600 focus:outline-none">
+                            <svg v-if="!showPassword" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a10.05 10.05 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.054 10.054 0 01-1.791 3.475m-1.219 1.219l2.71 2.71"></path></svg>
+                        </button>
+                    </div>
                     
                     <div v-if="!isLoginMode" class="space-y-3 animate-fade-in-up">
                         <input v-model="authForm.full_name" type="text" placeholder="ชื่อ-นามสกุล" class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none text-sm" required>
@@ -225,7 +232,7 @@
                                                 <td v-if="canEditMembers" class="p-3 text-right">
                                                     <div class="flex gap-2 justify-end">
                                                         <button @click="openEditMember(m)" class="text-yellow-600 bg-white/80 p-1.5 rounded-lg hover:bg-yellow-100 border border-yellow-200 transition shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
-                                                        <button @click="deleteMember(m.id)" class="text-red-500 bg-white/80 p-1.5 rounded-lg hover:bg-red-100 border border-red-200 transition shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                                                        <button v-if="canDeleteMembers" @click="deleteMember(m.id)" class="text-red-500 bg-white/80 p-1.5 rounded-lg hover:bg-red-100 border border-red-200 transition shadow-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -361,7 +368,7 @@
             <div class="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl animate-fade-in-up">
                 <h3 class="text-2xl font-bold mb-6 text-slate-800">{{ transactionMode === 'edit' ? 'แก้ไขรายการ' : (transactionMode === 'set_balance' ? 'ตั้งงบประมาณเริ่มต้น' : 'บันทึกรายการ') }}</h3>
                 <form @submit.prevent="saveTransaction" class="space-y-5">
-                    <div v-if="user.role === 'admin' && transactionMode === 'new'"><label class="text-sm font-bold text-slate-400 ml-1">ของสี</label><select v-model="transactionForm.target_color" class="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none"><option value="purple">สีม่วง</option><option value="skyblue">สีฟ้า</option><option value="blue">สีน้ำเงิน</option><option value="green">สีเขียว</option><option value="orange">สีแสด</option><option value="yellow">สีเหลือง</option></select></div>
+                    <div v-if="user.role === 'admin' && transactionMode === 'new'"><label class="text-sm font-bold text-slate-400 ml-1">ของสี</label><select v-model="transactionForm.color" class="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none"><option value="purple">สีม่วง</option><option value="skyblue">สีฟ้า</option><option value="blue">สีน้ำเงิน</option><option value="green">สีเขียว</option><option value="orange">สีแสด</option><option value="yellow">สีเหลือง</option></select></div>
                     <input v-model="transactionForm.description" placeholder="รายการ (เช่น ค่าสี, ค่าอุปกรณ์)" class="w-full p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100" required :disabled="transactionMode === 'set_balance'">
                     <div class="flex gap-3">
                         <input v-model="transactionForm.amount" type="number" placeholder="จำนวนเงิน" class="w-2/3 p-4 bg-slate-50 rounded-2xl text-base outline-none border border-slate-100" required>
@@ -392,13 +399,14 @@
    <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
         // 🟢 URL เดิมของคุณ
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDL_PJ2Db4E8AczoG1xA0TRfcJSXhIfXw2cEjd2RhGsenFFWdEXGC382kUv3wopiPS/exec'; 
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJaBVcnVZizFq65mlPy2sIf5ELLqO_VLZuSph5fDz6Hev7UBvUC0ZmsCf2Pf0Tmr9h/exec'; 
 
         createApp({
             setup() {
                 const token = ref(localStorage.getItem('token') || '');
                 const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
                 const isLoginMode = ref(true);
+                const showPassword = ref(false); 
                 const currentTab = ref('members');
                 const showAddMemberModal = ref(false);
                 const showTransactionModal = ref(false);
@@ -410,22 +418,16 @@
                 const userList = ref([]);
                 const levelFilter = ref('all');
                 const adminFilterColor = ref('all');
-                
-                // 🟢 เพิ่ม: ตัวแปรสำหรับกรองแผนก
                 const departmentFilter = ref('all');
 
                 const authForm = ref({ username: '', password: '', full_name: '', color: '', role: '' });
                 const memberForm = ref({ id: null, name: '', student_id: '', level: 'ปวช. 1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false });
-                const transactionForm = ref({ id: null, description: '', amount: '', type: 'expense', target_color: 'purple', confirm_password: '' });
+                const transactionForm = ref({ id: null, description: '', amount: '', type: 'expense', color: 'purple', confirm_password: '' });
                 const profileForm = ref({ full_name: '', new_password: '' });
 
                 const levels = [ 
-                    { id: 'ปวช. 1', name: 'ปวช. 1' }, 
-                    { id: 'ปวช. 2', name: 'ปวช. 2' }, 
-                    { id: 'ปวช. 3', name: 'ปวช. 3' }, 
-                    { id: 'ปวส. 1', name: 'ปวส. 1' }, 
-                    { id: 'ปวส. 2', name: 'ปวส. 2' },
-                    { id: 'ป.ตรี', name: 'ป.ตรี' },
+                    { id: 'ปวช. 1', name: 'ปวช. 1' }, { id: 'ปวช. 2', name: 'ปวช. 2' }, { id: 'ปวช. 3', name: 'ปวช. 3' }, 
+                    { id: 'ปวส. 1', name: 'ปวส. 1' }, { id: 'ปวส. 2', name: 'ปวส. 2' }, { id: 'ป.ตรี', name: 'ป.ตรี' },
                     { id: 'คณะครู/บุคลากร', name: 'ครู/บุคลากร' }
                 ];
 
@@ -438,34 +440,27 @@
                     yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล', 'คณะครู/บุคลากร']
                 };
 
-                // 🟢 เพิ่ม: Map แปลงชื่อสีไทยเป็นอังกฤษ (แก้ปัญหาข้อมูลไม่ตรง)
                 const colorMap = {
-                    'สีม่วง': 'purple', 'ม่วง': 'purple',
-                    'สีฟ้า': 'skyblue', 'ฟ้า': 'skyblue',
-                    'สีน้ำเงิน': 'blue', 'น้ำเงิน': 'blue',
-                    'สีเขียว': 'green', 'เขียว': 'green',
-                    'สีแสด': 'orange', 'แสด': 'orange', 'ส้ม': 'orange',
-                    'สีเหลือง': 'yellow', 'เหลือง': 'yellow'
+                    'สีม่วง': 'purple', 'ม่วง': 'purple', 'สีฟ้า': 'skyblue', 'ฟ้า': 'skyblue',
+                    'สีน้ำเงิน': 'blue', 'น้ำเงิน': 'blue', 'สีเขียว': 'green', 'เขียว': 'green',
+                    'สีแสด': 'orange', 'แสด': 'orange', 'ส้ม': 'orange', 'สีเหลือง': 'yellow', 'เหลือง': 'yellow'
                 };
 
-                // 🟢 เพิ่ม: ฟังก์ชันทำความสะอาดข้อความ (ตัดช่องว่าง, ตัวเล็ก)
                 const cleanStr = (str) => (str || '').toString().toLowerCase().trim();
 
                 const normalizeLevel = (input) => {
                     if (!input) return 'ไม่ระบุ';
                     const clean = input.toString().replace(/\s+/g, '').toLowerCase();
-                    if (clean === 'voc1' || clean === 'ปวช.1') return 'ปวช. 1';
-                    if (clean === 'voc2' || clean === 'ปวช.2') return 'ปวช. 2';
-                    if (clean === 'voc3' || clean === 'ปวช.3') return 'ปวช. 3';
-                    if (clean === 'hvoc1' || clean === 'dip1' || clean === 'ปวส.1') return 'ปวส. 1';
-                    if (clean === 'hvoc2' || clean === 'dip2' || clean === 'ปวส.2') return 'ปวส. 2';
-                    if (clean === 'ป.ตรี' || clean === 'ปตรี') return 'ป.ตรี';
+                    if (clean.includes('voc1') || clean.includes('ปวช.1')) return 'ปวช. 1';
+                    if (clean.includes('voc2') || clean.includes('ปวช.2')) return 'ปวช. 2';
+                    if (clean.includes('voc3') || clean.includes('ปวช.3')) return 'ปวช. 3';
+                    if (clean.includes('hvoc1') || clean.includes('dip1') || clean.includes('ปวส.1')) return 'ปวส. 1';
+                    if (clean.includes('hvoc2') || clean.includes('dip2') || clean.includes('ปวส.2')) return 'ปวส. 2';
+                    if (clean.includes('ป.ตรี') || clean.includes('ปตรี')) return 'ป.ตรี';
                     return input; 
                 };
 
-                // 🟢 เพิ่ม: Computed property สำหรับดึงรายชื่อแผนกทั้งหมดที่มีในข้อมูลปัจจุบัน (ใช้สำหรับ Dropdown filter)
                 const uniqueDepartments = computed(() => {
-                    // ใช้ Set เพื่อดึงค่าที่ไม่ซ้ำ และกรองเอาเฉพาะที่มีค่า
                     return [...new Set(members.value.map(m => m.department).filter(Boolean))].sort();
                 });
 
@@ -486,8 +481,11 @@
                 const currentDepartmentOptions = computed(() => {
                     let color = user.value.color;
                     if (user.value.role === 'admin') color = memberForm.value.target_color || 'purple';
-                    const safeColor = cleanStr(color);
-                    const key = Object.keys(departments).find(k => cleanStr(k) === safeColor);
+                    
+                    let cleanColor = cleanStr(color);
+                    if (colorMap[color.trim()]) cleanColor = colorMap[color.trim()];
+                    
+                    const key = Object.keys(departments).find(k => cleanStr(k) === cleanColor);
                     return departments[key] || [];
                 });
 
@@ -497,21 +495,41 @@
                     if (newVal) {
                         memberForm.value.level = 'คณะครู/บุคลากร';
                         memberForm.value.room = '-';
-                    } else {
-                        if (memberForm.value.level === 'คณะครู/บุคลากร') {
-                            memberForm.value.level = 'ปวช. 1';
-                            memberForm.value.room = ''; 
-                        }
+                    } else if (memberForm.value.level === 'คณะครู/บุคลากร') {
+                        memberForm.value.level = 'ปวช. 1';
+                        memberForm.value.room = ''; 
                     }
                 });
 
-                const canEditMembers = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
-                const canAccessBudget = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
-                const canManageBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
-                const canSetBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
-                const canWithdraw = computed(() => ['treasurer', 'admin'].includes(user.value.role));
-                const getDeptOptions = (c) => departments[c] || [];
+                const currentUserRole = computed(() => (user.value.role || '').toLowerCase());
 
+                // 🟢 แก้ไขข้อ 1: อนุญาตให้ Staff แก้ไขข้อมูลได้ (เพิ่ม 'staff' ใน list)
+                const canEditMembers = computed(() => 
+                    ['admin', 'president', 'vice', 'staff'].includes(currentUserRole.value)
+                );
+
+                // 🟢 เพิ่ม: สิทธิ์ในการลบ (Staff ไม่มีสิทธิ์นี้)
+                const canDeleteMembers = computed(() => 
+                    ['admin', 'president', 'vice'].includes(currentUserRole.value)
+                );
+
+                // 🟢 แก้ไข: เพิ่ม President และ Vice ให้มองเห็นเมนูงบประมาณได้ (ตามความต้องการก่อนหน้า)
+                const canAccessBudget = computed(() => 
+                    ['admin', 'treasurer', 'president', 'vice'].includes(currentUserRole.value)
+                );
+
+                const canManageBudget = computed(() => 
+                    ['admin', 'treasurer'].includes(currentUserRole.value)
+                );
+
+                const canSetBudget = computed(() => 
+                    ['admin', 'treasurer'].includes(currentUserRole.value)
+                );
+
+                const canWithdraw = computed(() => 
+                    ['admin', 'treasurer'].includes(currentUserRole.value)
+                );
+                
                 const callSheet = async (action, payload = {}) => {
                     try {
                         const response = await axios.post(GOOGLE_SCRIPT_URL, JSON.stringify({ action, ...payload }), {
@@ -547,9 +565,6 @@
                     }
                 };
 
-                // 🟢 fetchData: Logic เดิมครอบคลุม Requirement ข้อ 1 แล้ว
-                // โดยเฉพาะส่วนที่เช็ค userRole !== 'admin' แล้วกรองสีทิ้ง
-                // ทำให้ Staff/President จะไม่มีทางเห็นข้อมูลสีอื่นได้เลย
                 const fetchData = async (showLoading = false) => {
                     if (!token.value) return;
 
@@ -566,9 +581,11 @@
                         let filtered = Array.isArray(resM) ? resM : [];
                         filtered = filtered.map(m => {
                             if (m.department) m.department = m.department.trim();
+                            
                             if (m.color && colorMap[m.color.trim()]) {
                                 m.color = colorMap[m.color.trim()];
                             }
+                            
                             if ((!m.color || m.color.trim() === '') && m.department) {
                                 for (const [col, deptList] of Object.entries(departments)) {
                                     if (deptList.some(d => d.trim() === m.department)) {
@@ -577,25 +594,26 @@
                                     }
                                 }
                             }
+                            
                             if(m.color) m.color = cleanStr(m.color);
                             return m;
                         });
 
                         const userRole = (user.value.role || '').toLowerCase();
-                        const userColor = cleanStr(user.value.color);
+                        
+                        let rawUserColor = user.value.color || '';
+                        if (colorMap[rawUserColor.trim()]) rawUserColor = colorMap[rawUserColor.trim()];
+                        const userColor = cleanStr(rawUserColor);
 
-                        // 🟢 จุดสำคัญ: การกรองสิทธิ์ (ข้อ 1)
                         if(userRole !== 'admin') {
-                            // ถ้าไม่ใช่ Admin จะเห็นได้แค่สีตัวเองเท่านั้น
                             filtered = filtered.filter(m => (m.color || '') === userColor);
                         } else if (userRole === 'admin' && adminFilterColor.value !== 'all') {
                             const adminTarget = cleanStr(adminFilterColor.value);
                             filtered = filtered.filter(m => (m.color || '') === adminTarget);
                         }
-                        members.value = filtered;
                         
-                        // Reset ตัวกรองแผนกเมื่อข้อมูลเปลี่ยน
-                        departmentFilter.value = 'all';
+                        members.value = filtered;
+                        departmentFilter.value = 'all'; 
 
                         let filteredB = Array.isArray(resB) ? resB : [];
                         filteredB = filteredB.map(b => {
@@ -605,7 +623,11 @@
 
                         if(userRole !== 'admin') {
                             filteredB = filteredB.filter(b => cleanStr(b.color) === userColor);
+                        } else if (userRole === 'admin' && adminFilterColor.value !== 'all') {
+                             const adminTarget = cleanStr(adminFilterColor.value);
+                             filteredB = filteredB.filter(b => cleanStr(b.color) === adminTarget);
                         }
+                        
                         budgetList.value = filteredB;
 
                     } catch (err) {
@@ -636,18 +658,72 @@
 
                 const filteredMembers = computed(() => {
                     let res = members.value;
-                    // กรอง Level
                     if (levelFilter.value !== 'all') {
                         res = res.filter(m => normalizeLevel(m.level) === levelFilter.value);
                     }
-                    // 🟢 เพิ่ม: กรอง Department (ข้อ 2)
                     if (departmentFilter.value !== 'all') {
                         res = res.filter(m => m.department === departmentFilter.value);
                     }
                     return res;
                 });
 
+                // 🟢 แก้ไขข้อ 2: Logic การบันทึกสำหรับ Staff ที่ต้องยืนยันตัวตนหัวหน้า
                 const saveMember = async () => {
+                    // ถ้าเป็น Staff ให้ตรวจสอบสิทธิ์หัวหน้าก่อน
+                    if (currentUserRole.value === 'staff') {
+                        const { value: formValues } = await Swal.fire({
+                            title: 'ยืนยันสิทธิ์หัวหน้า',
+                            html:
+                                '<div class="text-left text-sm mb-4 text-gray-500">กรุณาให้ประธาน รองประธาน หรือแอดมิน กรอกรหัสผ่านเพื่ออนุมัติการแก้ไข</div>' +
+                                '<input id="swal-input1" class="swal2-input" placeholder="ชื่อผู้ใช้ (หัวหน้า)">' +
+                                '<input id="swal-input2" class="swal2-input" type="password" placeholder="รหัสผ่าน (หัวหน้า)">',
+                            focusConfirm: false,
+                            showCancelButton: true,
+                            confirmButtonText: 'ตรวจสอบ',
+                            cancelButtonText: 'ยกเลิก',
+                            preConfirm: () => {
+                                return [
+                                    document.getElementById('swal-input1').value,
+                                    document.getElementById('swal-input2').value
+                                ]
+                            }
+                        });
+
+                        if (formValues) {
+                            const [supUser, supPass] = formValues;
+                            if(!supUser || !supPass) return;
+
+                            Swal.fire({ title: 'กำลังตรวจสอบสิทธิ์...', didOpen: () => Swal.showLoading() });
+                            // ใช้ API Login เดิมเพื่อตรวจสอบ User/Pass ของหัวหน้า
+                            const res = await callSheet('login', { username: supUser, password: supPass });
+
+                            if (res.status === 'success') {
+                                const supRole = (res.user.role || '').toLowerCase();
+                                const supColor = cleanStr(res.user.color || '');
+                                const myColor = cleanStr(user.value.color || '');
+
+                                // ตรวจสอบว่า User ที่มา Approve เป็น Admin หรือเป็นหัวหน้าของสีเดียวกัน
+                                const isAuthorized = 
+                                    supRole === 'admin' || 
+                                    (['president', 'vice'].includes(supRole) && supColor === myColor);
+
+                                if (isAuthorized) {
+                                    // ผ่านการตรวจสอบ -> ทำการบันทึก
+                                    await proceedSave();
+                                } else {
+                                    Swal.fire('ปฏิเสธ', 'ผู้ใช้นี้ไม่มีสิทธิ์อนุมัติการแก้ไขของสีนี้', 'error');
+                                }
+                            } else {
+                                Swal.fire('ผิดพลาด', 'ชื่อผู้ใช้หรือรหัสผ่านหัวหน้าไม่ถูกต้อง', 'error');
+                            }
+                        }
+                    } else {
+                        // ถ้าไม่ใช่ Staff (เป็น Admin/Pres/Vice) บันทึกได้เลย
+                        await proceedSave();
+                    }
+                };
+
+                const proceedSave = async () => {
                       Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                       const payload = { ...memberForm.value, user_id: user.value.id };
                       await callSheet('saveMember', payload);
@@ -696,7 +772,7 @@
                 const openTransactionModal = (mode, data = null) => {
                     transactionMode.value = mode;
                     const defaultColor = user.value.role === 'admin' ? 'purple' : user.value.color;
-                    transactionForm.value = { description: '', amount: '', type: 'expense', target_color: defaultColor, confirm_password: '' };
+                    transactionForm.value = { description: '', amount: '', type: 'expense', color: defaultColor, confirm_password: '' };
                     
                     if (mode === 'edit' && data) {
                         transactionForm.value = { ...data, confirm_password: '' };
@@ -798,14 +874,13 @@
 
                 const generateSummary = () => {
                     const summary = {};
-                    const deptTotals = {}; // 🟢 เพิ่ม: เก็บยอดรวมแยกแผนก
+                    const deptTotals = {}; 
 
                     filteredMembers.value.forEach(m => {
                         const dept = m.department || 'ไม่ระบุแผนก';
                         const lvlName = normalizeLevel(m.level); 
                         const roomName = m.room ? `ห้อง ${m.room}` : 'ไม่ระบุห้อง';
 
-                        // Calculate Department Totals
                         if (!deptTotals[dept]) deptTotals[dept] = 0;
                         deptTotals[dept]++;
 
@@ -821,7 +896,6 @@
 
                     let html = '<div class="overflow-y-auto max-h-[60vh] text-left text-sm">';
                     
-                    // 🟢 เพิ่ม: ส่วนแสดงตารางสรุปยอดแยกตามแผนก (ข้อ 3)
                     if (Object.keys(deptTotals).length > 0) {
                         html += '<div class="mb-4 bg-yellow-50 p-4 rounded-xl border border-yellow-200 shadow-sm">';
                         html += '<h3 class="font-bold text-lg mb-2 text-yellow-800 border-b border-yellow-200 pb-2">📊 สรุปยอดรวมแยกตามแผนก</h3>';
@@ -838,7 +912,6 @@
                         html += '<hr class="border-slate-200 mb-4">';
                     }
 
-                    // Existing Detailed Breakdown
                     for (const [dept, levels] of Object.entries(summary)) {
                         html += `<h3 class="font-bold text-base mt-4 mb-2 bg-slate-100 p-2 rounded text-slate-700 border-l-4 border-purple-500 flex justify-between items-center"><span>${dept}</span> <span class="text-xs bg-white px-2 py-0.5 rounded border shadow-sm">รวม ${deptTotals[dept]}</span></h3>`;
                         for (const [lvl, rooms] of Object.entries(levels)) {
@@ -949,8 +1022,10 @@
                     showAddMemberModal, showTransactionModal, showEditProfileModal, showProfileMenu, transactionMode,
                     confirmBulkPay, confirmBulkPayObj,
                     visibleFilterLevels, formLevels, showSizeChart, isStaff,
+                    departmentFilter, uniqueDepartments,
+                    showPassword,
                     // 🟢 Export เพิ่ม
-                    departmentFilter, uniqueDepartments
+                    canDeleteMembers
                 };
             }
         }).mount('#app');
