@@ -423,6 +423,7 @@
                     yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล', 'คณะครู/บุคลากร']
                 };
 
+                // ฟังก์ชันจัดรูปแบบระดับชั้น
                 const normalizeLevel = (input) => {
                     if (!input) return 'ไม่ระบุ';
                     const clean = input.toString().replace(/\s+/g, '').toLowerCase();
@@ -435,12 +436,14 @@
                     return input; 
                 };
 
+                // 🟢 กรองปุ่มระดับชั้น: แสดง ป.ตรี เฉพาะสีเหลือง หรือ Admin ที่เลือกดูทั้งหมด
                 const visibleFilterLevels = computed(() => {
                     const contextColor = user.value.role === 'admin' ? adminFilterColor.value : user.value.color;
                     if (contextColor === 'yellow' || contextColor === 'all') return levels;
                     return levels.filter(l => l.id !== 'ป.ตรี');
                 });
 
+                // 🟢 กรอง Dropdown ตอนเพิ่มสมาชิก: แสดง ป.ตรี เฉพาะเมื่อเพิ่มให้สีเหลือง
                 const formLevels = computed(() => {
                     let target = user.value.role === 'admin' ? memberForm.value.target_color : user.value.color;
                     if (target === 'yellow') return levels;
@@ -455,32 +458,35 @@
 
                 const isStaff = computed(() => form.value.department === 'คณะครู/บุคลากร');
 
-                watch(isStaff, (newVal) => {
-                    if (newVal) {
-                        form.value.level = 'คณะครู/บุคลากร';
-                        form.value.room = '-';
-                    } else {
-                        form.value.level = 'ปวช. 1';
-                        form.value.room = ''; 
+                // 🟢 Watcher สำหรับฟอร์มเพิ่มสมาชิก (จัดการกรณีเลือกเป็นครู)
+                watch(() => memberForm.value.department, (newVal) => {
+                    if (newVal === 'คณะครู/บุคลากร') {
+                        memberForm.value.level = 'คณะครู/บุคลากร';
+                        memberForm.value.room = '-';
+                    } else if (memberForm.value.level === 'คณะครู/บุคลากร') {
+                        memberForm.value.level = 'ปวช. 1';
+                        memberForm.value.room = ''; 
                     }
                 });
 
-                // 🟢 กำหนดสิทธิ์ตามเงื่อนไขใหม่
-                // 1. Staff ดูได้อย่างเดียว (ไม่อยู่ใน list นี้)
-                // 2. ประธาน, รอง, เหรัญญิก, Admin แก้ไข/ลบสมาชิกได้
+                // --- 🟢 กำหนดสิทธิ์การใช้งาน ---
+                // Staff: ดูได้อย่างเดียว (ไม่อยู่ในเงื่อนไขใดเลยข้างล่างนี้)
+                
+                // สิทธิ์แก้ไข/ลบสมาชิก: ประธาน, รอง, เหรัญญิก, Admin
                 const canEditMembers = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
                 
-                // 3. Staff ไม่เห็นหน้างบประมาณ (ไม่อยู่ใน list นี้)
+                // สิทธิ์เข้าถึงหน้างบประมาณ: ประธาน, รอง, เหรัญญิก, Admin
                 const canAccessBudget = computed(() => ['president', 'vice', 'treasurer', 'admin'].includes(user.value.role));
                 
-                // 4. เหรัญญิก และ Admin จัดการงบได้ (เพิ่ม/ลบ/แก้)
+                // สิทธิ์จัดการงบประมาณ (เพิ่ม/ลบ/แก้): เหรัญญิก, Admin
                 const canManageBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
                 
-                // 5. ตั้งงบเริ่มต้น (ให้สิทธิ์เหมือน Manage Budget)
+                // สิทธิ์ตั้งงบเริ่มต้น: เหรัญญิก, Admin
                 const canSetBudget = computed(() => ['treasurer', 'admin'].includes(user.value.role));
-                const canWithdraw = computed(() => ['treasurer', 'admin'].includes(user.value.role));
                 
-                const getDeptOptions = (c) => departments[c] || [];
+                // สิทธิ์เบิกจ่าย (Expense): เหรัญญิก, Admin
+                const canWithdraw = computed(() => ['treasurer', 'admin'].includes(user.value.role));
+                // -----------------------------
 
                 const callSheet = async (action, payload = {}) => {
                     try {
@@ -530,6 +536,7 @@
                             callSheet('getBudget')
                         ]);
 
+                        // เติมสีอัตโนมัติหากข้อมูลสีขาดหาย
                         let filtered = Array.isArray(resM) ? resM : [];
                         filtered = filtered.map(m => {
                             if ((!m.color || m.color.trim() === '') && m.department) {
@@ -543,6 +550,7 @@
                             return m;
                         });
 
+                        // กรองสมาชิกตามสิทธิ์
                         if(user.value.role !== 'admin') {
                             filtered = filtered.filter(m => m.color === user.value.color);
                         }
@@ -551,6 +559,7 @@
                         }
                         members.value = filtered;
 
+                        // กรองงบประมาณตามสิทธิ์
                         let filteredB = Array.isArray(resB) ? resB : [];
                         if(user.value.role !== 'admin') {
                             filteredB = filteredB.filter(b => b.color === user.value.color);
@@ -579,7 +588,6 @@
                 };
 
                 const openAddMember = () => {
-                    // หากไม่ใช่แอดมิน ให้ล็อกสีตาม user ทันที
                     const defaultColor = user.value.role === 'admin' ? 'purple' : user.value.color;
                     memberForm.value = { id: null, name: '', student_id: '', level: 'ปวช. 1', room: '', shirt_size: 'M', target_color: defaultColor, department: '', is_paid: false, is_received: false };
                     showAddMemberModal.value = true;
@@ -591,7 +599,7 @@
                     showAddMemberModal.value = true;
                 };
 
-                // 🟢 แก้ไข: การลบสมาชิกต้องยืนยันรหัสผ่าน (เหมือนแอดมิน)
+                // 🟢 ลบสมาชิก: เพิ่มการยืนยันรหัสผ่าน
                 const deleteMember = async (id) => {
                       const { value: password } = await Swal.fire({
                           title: 'ยืนยันรหัสผ่านเพื่อลบ',
@@ -605,15 +613,12 @@
                           confirmButtonText: 'ลบข้อมูล',
                           cancelButtonText: 'ยกเลิก',
                           inputValidator: (value) => {
-                              if (!value) {
-                                  return 'กรุณาใส่รหัสผ่านเพื่อยืนยัน'
-                              }
+                              if (!value) return 'กรุณาใส่รหัสผ่านเพื่อยืนยัน';
                           }
                       });
 
                       if (password) {
-                          Swal.fire({ title: 'กำลังตรวจสอบและลบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                          // ส่ง confirm_password และ user_id ไปตรวจสอบที่ Backend
+                          Swal.fire({ title: 'กำลังตรวจสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                           await callSheet('deleteMember', { id, confirm_password: password, user_id: user.value.id });
                           await fetchData(false);
                           Swal.fire('สำเร็จ', 'ลบข้อมูลเรียบร้อยแล้ว', 'success');
@@ -622,7 +627,7 @@
 
                 const openTransactionModal = (mode, data = null) => {
                     transactionMode.value = mode;
-                    // 🟢 แก้ไข: ถ้าไม่ใช่ Admin ให้ล็อก target_color เป็นสีของตัวเอง
+                    // 🟢 ถ้าไม่ใช่ Admin ให้ล็อกสีเป็นสีของตัวเอง
                     const defaultColor = user.value.role === 'admin' ? 'purple' : user.value.color;
                     
                     transactionForm.value = { description: '', amount: '', type: 'expense', target_color: defaultColor, confirm_password: '' };
@@ -647,7 +652,7 @@
                     Swal.fire('สำเร็จ', 'บันทึกข้อมูลแล้ว', 'success');
                 };
 
-                // 🟢 แก้ไข: การลบงบประมาณต้องยืนยันรหัสผ่าน
+                // 🟢 ลบงบประมาณ: เพิ่มการยืนยันรหัสผ่าน
                 const deleteTransaction = async (id) => {
                       const { value: password } = await Swal.fire({
                           title: 'ยืนยันรหัสผ่านเพื่อลบ',
@@ -661,14 +666,12 @@
                           confirmButtonText: 'ลบรายการ',
                           cancelButtonText: 'ยกเลิก',
                           inputValidator: (value) => {
-                              if (!value) {
-                                  return 'กรุณาใส่รหัสผ่านเพื่อยืนยัน'
-                              }
+                              if (!value) return 'กรุณาใส่รหัสผ่านเพื่อยืนยัน';
                           }
                       });
 
                       if(password) {
-                        Swal.fire({ title: 'กำลังลบข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        Swal.fire({ title: 'กำลังตรวจสอบ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                         await callSheet('deleteTransaction', { id, confirm_password: password, user_id: user.value.id });
                         await fetchData(false);
                         Swal.fire('สำเร็จ', 'ลบรายการเรียบร้อยแล้ว', 'success');
