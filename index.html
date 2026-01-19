@@ -100,8 +100,7 @@
                             <option value="president">ประธานสี</option>
                             <option value="vice">รองประธานสี</option>
                             <option value="treasurer">เหรัญญิก</option>
-                            <option value="admin">ผู้ดูแลระบบ</option>
-                        </select>
+                            </select>
                         <select v-if="authForm.role !== 'admin'" v-model="authForm.color" class="w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl outline-none text-sm text-slate-600" required>
                             <option value="" disabled selected>เลือกสีสังกัด</option>
                             <option value="purple">สีม่วง</option>
@@ -185,13 +184,20 @@
 
                     <div v-if="Object.keys(groupedMembers).length > 0">
                         <div v-for="(rooms, dept) in groupedMembers" :key="dept" class="mb-8 bg-white/50 rounded-2xl border border-slate-100 p-4 shadow-sm">
-                            <h3 class="text-lg md:text-xl font-bold text-slate-700 mb-3 flex items-center gap-2">
-                                <span class="bg-purple-100 text-purple-700 p-1.5 rounded-lg text-sm">🏢</span> {{ dept }}
-                                <label v-if="canEditMembers" class="ml-2 flex items-center gap-1 cursor-pointer text-sm font-normal text-slate-500 hover:text-green-600 bg-white border px-2 py-0.5 rounded-lg">
-                                    <input type="checkbox" class="w-4 h-4 rounded text-green-600" 
-                                           @change="confirmBulkPayObj(rooms, $event.target.checked)">
-                                    <span>จ่ายครบทั้งแผนก</span>
-                                </label>
+                            <h3 class="text-lg md:text-xl font-bold text-slate-700 mb-3 flex items-center gap-2 flex-wrap">
+                                <span class="flex items-center gap-2">
+                                    <span class="bg-purple-100 text-purple-700 p-1.5 rounded-lg text-sm">🏢</span> {{ dept }}
+                                </span>
+                                <div class="flex items-center gap-2 ml-auto">
+                                    <label v-if="canEditMembers" class="flex items-center gap-1 cursor-pointer text-sm font-normal text-slate-500 hover:text-green-600 bg-white border px-2 py-0.5 rounded-lg">
+                                        <input type="checkbox" class="w-4 h-4 rounded text-green-600" 
+                                               @change="confirmBulkPayObj(rooms, $event.target.checked)">
+                                        <span>จ่ายครบทั้งแผนก</span>
+                                    </label>
+                                    <button v-if="user.role === 'admin'" @click="deleteDepartmentMembers(dept)" class="flex items-center gap-1 text-sm font-normal text-red-500 hover:text-red-700 bg-white border border-red-200 px-2 py-0.5 rounded-lg transition">
+                                        <span>🗑️ ลบทั้งแผนก</span>
+                                    </button>
+                                </div>
                             </h3>
                             
                             <div v-for="(members, roomKey) in rooms" :key="roomKey" class="mb-4 ml-2 md:ml-4">
@@ -424,7 +430,7 @@
                 const levelFilter = ref('all');
                 const adminFilterColor = ref('all');
                 const departmentFilter = ref('all');
-                const searchQuery = ref(''); // 🟢 2. Search Query Variable
+                const searchQuery = ref('');
 
                 const authForm = ref({ username: '', password: '', full_name: '', color: '', role: '' });
                 const memberForm = ref({ id: null, name: '', student_id: '', level: 'ปวช. 1', room: '', shirt_size: 'M', target_color: 'purple', department: '', is_paid: false, is_received: false });
@@ -440,7 +446,8 @@
                 const departments = {
                     orange: ['ช่างไฟฟ้า', 'อาหารและโภชนาการ', 'คณะครู/บุคลากร'], 
                     green: ['ช่างยนต์', 'เทคโนโลยีสารสนเทศ', 'คณะครู/บุคลากร'], 
-                    purple: ['เทคโนโลยีฐานวิทยาศาสตร์', 'การท่องเที่ยว', 'แปรรูปอาหาร', 'ไมซ์และอีเวนท์', 'ท่องเที่ยวเชิงสุขภาพ', 'คณะครู/บุคลากร'],
+                    // ข้อที่ 3: ลบแผนกวิชาเทคโนโลยีฐานวิทยาศาสตร์ ออกจากสังกัดสีม่วง
+                    purple: ['การท่องเที่ยว', 'แปรรูปอาหาร', 'ไมซ์และอีเวนท์', 'ท่องเที่ยวเชิงสุขภาพ', 'คณะครู/บุคลากร'],
                     skyblue: ['ช่างอิเล็กทรอนิกส์', 'เทคโนโลยีธุรกิจดิจิทัล', 'การโรงแรม', 'คณะครู/บุคลากร'], 
                     blue: ['ช่างก่อสร้าง', 'การตลาด', 'คณะครู/บุคลากร'], 
                     yellow: ['การบัญชี', 'ช่างเชื่อม', 'ช่างกล', 'คณะครู/บุคลากร']
@@ -668,7 +675,6 @@
                         res = res.filter(m => m.department === departmentFilter.value);
                     }
 
-                    // 🟢 3. เพิ่ม Logic การกรองด้วย Search Query
                     if (searchQuery.value) {
                         const query = searchQuery.value.toLowerCase();
                         res = res.filter(m => 
@@ -774,6 +780,46 @@
                           await fetchData(false);
                           Swal.fire('สำเร็จ', 'ลบข้อมูลเรียบร้อยแล้ว', 'success');
                       }
+                };
+
+                // ข้อที่ 4: ฟังก์ชันลบทั้งแผนก สำหรับ Admin
+                const deleteDepartmentMembers = async (deptName) => {
+                    const targetMembers = filteredMembers.value.filter(m => m.department === deptName);
+                    
+                    if (targetMembers.length === 0) {
+                        Swal.fire('ข้อมูล', 'ไม่พบสมาชิกในแผนกนี้', 'info');
+                        return;
+                    }
+
+                    const { value: password } = await Swal.fire({
+                        title: `ลบข้อมูลแผนก ${deptName}?`,
+                        text: `จะทำการลบสมาชิกทั้งหมด ${targetMembers.length} คนในแผนกนี้ การกระทำนี้ไม่สามารถย้อนกลับได้`,
+                        input: 'password',
+                        inputPlaceholder: 'ใส่รหัสผ่านของคุณเพื่อยืนยัน',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        confirmButtonText: 'ยืนยันการลบทั้งหมด',
+                        cancelButtonText: 'ยกเลิก',
+                        inputValidator: (value) => {
+                             if (!value) return 'กรุณาใส่รหัสผ่านเพื่อยืนยัน';
+                        }
+                    });
+
+                    if (password) {
+                        Swal.fire({ title: 'กำลังลบข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                        let successCount = 0;
+                        for (const member of targetMembers) {
+                            try {
+                                await callSheet('deleteMember', { id: member.id, confirm_password: password, user_id: user.value.id });
+                                successCount++;
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        }
+                        await fetchData(false);
+                        Swal.fire('สำเร็จ', `ลบข้อมูลเรียบร้อย ${successCount} คน`, 'success');
+                    }
                 };
 
                 const openTransactionModal = (mode, data = null) => {
@@ -893,7 +939,8 @@
 
                         if (!summary[dept]) summary[dept] = {};
                         if (!summary[dept][lvlName]) summary[dept][lvlName] = {};
-                        if (!summary[dept][lvlName][roomName]) summary[dept][lvlName][roomName] = { S:0, M:0, L:0, XL:0, '2XL':0, '3XL':0, '4XL':0, Total:0 };
+                        // ข้อที่ 1: เพิ่มขนาดไซต์ SS - 6XL ในการเก็บข้อมูลสรุป
+                        if (!summary[dept][lvlName][roomName]) summary[dept][lvlName][roomName] = { SS:0, S:0, M:0, L:0, XL:0, '2XL':0, '3XL':0, '4XL':0, '5XL':0, '6XL':0, Total:0 };
 
                         if (summary[dept][lvlName][roomName][m.shirt_size] !== undefined) {
                             summary[dept][lvlName][roomName][m.shirt_size]++;
@@ -923,16 +970,18 @@
                         html += `<h3 class="font-bold text-base mt-4 mb-2 bg-slate-100 p-2 rounded text-slate-700 border-l-4 border-purple-500 flex justify-between items-center"><span>${dept}</span> <span class="text-xs bg-white px-2 py-0.5 rounded border shadow-sm">รวม ${deptTotals[dept]}</span></h3>`;
                         for (const [lvl, rooms] of Object.entries(levels)) {
                             html += `<h4 class="font-bold text-slate-600 mt-2 ml-2 text-xs bg-slate-50 p-1 rounded inline-block border border-slate-200">${lvl}</h4>`;
-                            html += `<table class="w-full border-collapse border border-slate-200 mt-1 mb-3 text-center text-xs">`;
-                            html += `<thead class="bg-slate-50"><tr><th class="border p-1">ห้อง</th><th class="border p-1">S</th><th class="border p-1">M</th><th class="border p-1">L</th><th class="border p-1">XL</th><th class="border p-1">2XL</th><th class="border p-1">3XL</th><th class="border p-1">4XL</th><th class="border p-1 bg-purple-50 font-bold">รวม</th></tr></thead><tbody>`;
+                            html += `<div class="overflow-x-auto"><table class="w-full border-collapse border border-slate-200 mt-1 mb-3 text-center text-[10px] md:text-xs">`;
+                            // ข้อที่ 1: เพิ่มขนาดไซต์ SS - 6XL ในการแสดงผลตาราง (Header)
+                            html += `<thead class="bg-slate-50"><tr><th class="border p-1">ห้อง</th><th class="border p-1">SS</th><th class="border p-1">S</th><th class="border p-1">M</th><th class="border p-1">L</th><th class="border p-1">XL</th><th class="border p-1">2XL</th><th class="border p-1">3XL</th><th class="border p-1">4XL</th><th class="border p-1">5XL</th><th class="border p-1">6XL</th><th class="border p-1 bg-purple-50 font-bold">รวม</th></tr></thead><tbody>`;
 
                             for (const [room, sizes] of Object.entries(rooms)) {
-                                html += `<tr><td class="border p-1 font-medium text-left pl-2">${room}</td>`;
-                                html += `<td class="border p-1">${sizes.S}</td><td class="border p-1">${sizes.M}</td><td class="border p-1">${sizes.L}</td><td class="border p-1">${sizes.XL}</td>`;
-                                html += `<td class="border p-1">${sizes['2XL']}</td><td class="border p-1">${sizes['3XL']}</td><td class="border p-1">${sizes['4XL']}</td>`;
+                                html += `<tr><td class="border p-1 font-medium text-left pl-2 whitespace-nowrap">${room}</td>`;
+                                // ข้อที่ 1: เพิ่มขนาดไซต์ SS - 6XL ในการแสดงผลตาราง (Body)
+                                html += `<td class="border p-1">${sizes.SS}</td><td class="border p-1">${sizes.S}</td><td class="border p-1">${sizes.M}</td><td class="border p-1">${sizes.L}</td><td class="border p-1">${sizes.XL}</td>`;
+                                html += `<td class="border p-1">${sizes['2XL']}</td><td class="border p-1">${sizes['3XL']}</td><td class="border p-1">${sizes['4XL']}</td><td class="border p-1">${sizes['5XL']}</td><td class="border p-1">${sizes['6XL']}</td>`;
                                 html += `<td class="border p-1 font-bold bg-purple-50">${sizes.Total}</td></tr>`;
                             }
-                            html += `</tbody></table>`;
+                            html += `</tbody></table></div>`;
                         }
                     }
                     html += '</div>';
@@ -942,7 +991,7 @@
                     Swal.fire({ 
                         title: 'สรุปยอดเสื้อ', 
                         html: html, 
-                        width: '800px', 
+                        width: '900px', 
                         confirmButtonText: 'ปิด', 
                         customClass: { popup: 'rounded-2xl' }
                     });
@@ -1032,8 +1081,8 @@
                     departmentFilter, uniqueDepartments,
                     showPassword,
                     canDeleteMembers,
-                    // 🟢 Export เพิ่ม
-                    searchQuery
+                    searchQuery,
+                    deleteDepartmentMembers // export function ใหม่
                 };
             }
         }).mount('#app');
