@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Sarabun', sans-serif; background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%); background-image: radial-gradient(circle at 10% 20%, rgb(239, 246, 255) 0%, rgb(255, 241, 242) 90%); }
@@ -34,6 +35,15 @@
         .badge-orange { @apply bg-orange-100 text-orange-800 border border-orange-200; }
         .badge-yellow { @apply bg-yellow-100 text-yellow-800 border border-yellow-200; }
         .badge-admin { @apply bg-gray-800 text-white border border-gray-600; }
+        
+        /* PDF Styles */
+        #pdf-template { display: none; }
+        .pdf-page { page-break-after: always; padding: 20px; background: white; width: 100%; position: relative; }
+        .pdf-header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        .pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .pdf-table th, .pdf-table td { border: 1px solid #000; padding: 6px; text-align: left; }
+        .pdf-table th { background-color: #f3f3f3; text-align: center; }
+        .pdf-summary { margin-top: 15px; font-size: 12px; }
     </style>
 </head>
 <body class="min-h-screen text-slate-600 pb-20 text-sm">
@@ -147,6 +157,7 @@
                             <p class="text-slate-400 text-sm mt-1">ทั้งหมด <span class="font-bold text-purple-600">{{ filteredMembers.length }}</span> คน</p>
                         </div>
                         <div class="flex flex-wrap gap-3 w-full md:w-auto">
+                            <button @click="exportPDF" class="bg-red-500 text-white px-5 py-3 rounded-xl shadow hover:bg-red-600 flex items-center justify-center gap-2 text-sm font-bold flex-1 md:flex-none transition">📄 Export PDF</button>
                             <button @click="generateSummary" class="bg-indigo-500 text-white px-5 py-3 rounded-xl shadow hover:bg-indigo-600 flex items-center justify-center gap-2 text-sm font-bold flex-1 md:flex-none transition">📋 สรุปยอด</button>
                             <button v-if="canEditMembers" @click="openAddMember" class="btn-luxury px-6 py-3 rounded-xl shadow flex items-center justify-center gap-2 text-sm font-bold flex-1 md:flex-none">+ เพิ่มสมาชิก</button>
                         </div>
@@ -259,43 +270,92 @@
                 </div>
             </div>
 
-            <div v-if="currentTab === 'budget'" class="animate-fade-in-up">
-               <div class="glass-card p-6 md:p-8 rounded-[2rem]">
-                    <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-800">งบประมาณ</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div class="bg-green-50 p-6 rounded-2xl text-center border border-green-100 shadow-sm"><div class="text-sm text-green-600 font-bold mb-1 uppercase tracking-wide">รายรับ</div><div class="text-3xl font-bold text-green-700">{{ formatCurrency(totalIncome) }}</div></div>
-                        <div class="bg-red-50 p-6 rounded-2xl text-center border border-red-100 shadow-sm"><div class="text-sm text-red-600 font-bold mb-1 uppercase tracking-wide">รายจ่าย</div><div class="text-3xl font-bold text-red-700">{{ formatCurrency(totalExpense) }}</div></div>
-                        <div class="bg-blue-50 p-6 rounded-2xl text-center border border-blue-100 shadow-sm"><div class="text-sm text-blue-600 font-bold mb-1 uppercase tracking-wide">คงเหลือ</div><div class="text-3xl font-bold text-blue-700">{{ formatCurrency(totalIncome - totalExpense) }}</div></div>
-                    </div>
-                    
-                    <div class="flex gap-3 mb-6" v-if="canManageBudget">
-                        <button v-if="canSetBudget" @click="openTransactionModal('set_balance')" class="flex-1 bg-teal-500 text-white py-2 px-4 rounded-xl text-xs font-bold shadow hover:bg-teal-600 transition">💰 ตั้งงบเริ่มต้น</button>
-                        <button @click="openTransactionModal('new')" class="flex-[2] btn-luxury py-3 rounded-2xl text-base font-bold shadow transition">+ บันทึกรายการใหม่</button>
-                    </div>
-                    <div v-else class="bg-slate-50 p-4 rounded-2xl text-center text-slate-500 text-sm mb-6 border border-slate-200 flex items-center justify-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                        <span>เฉพาะเหรัญญิกและแอดมินเท่านั้นที่สามารถจัดการงบประมาณได้</span>
-                    </div>
-
-                    <div class="space-y-3">
-                        <div v-for="t in budgetList" :key="t.id" class="flex justify-between items-center bg-white/60 border border-slate-100 rounded-2xl p-5 hover:bg-white transition shadow-sm group">
-                            <div class="flex gap-4 items-center">
-                                <div :class="t.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'" class="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold shadow-inner">{{ t.type === 'income' ? '↗' : '↘' }}</div>
-                                <div>
-                                    <div class="text-lg font-bold text-slate-700">{{ t.description }}</div>
-                                    <div v-if="user.role === 'admin'" class="text-sm text-slate-400">{{ getColorName(t.color) }}</div>
-                                    
-                                </div>
-                            </div>
-                            <div class="flex gap-4 items-center">
-                                <span :class="t.type === 'income' ? 'text-green-600' : 'text-red-500'" class="font-bold text-xl">{{ formatCurrency(t.amount) }}</span>
-                                <div v-if="canManageBudget" class="flex gap-2">
-                                    <button @click="openTransactionModal('edit', t)" class="text-yellow-600 bg-yellow-100 p-2 rounded-xl hover:bg-yellow-200 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
-                                    <button @click="deleteTransaction(t.id)" class="text-red-600 bg-red-100 p-2 rounded-xl hover:bg-red-200 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
-                                </div>
-                            </div>
+            <div id="pdf-template">
+                <div v-for="(deptData, deptName) in groupedMembers" :key="deptName">
+                    <div v-for="(roomMembers, roomName) in deptData" :key="roomName" class="pdf-page">
+                        <div class="pdf-header">
+                            <h2 style="font-size: 18px; font-weight: bold;">แบบสำรวจไซต์เสื้อ ชงโคเกมส์</h2>
+                            <p style="font-size: 14px;">แผนกวิชา: {{ deptName }} | {{ roomName }}</p>
+                            <p style="font-size: 12px; color: #666;">พิมพ์เมื่อ: {{ new Date().toLocaleString('th-TH') }}</p>
+                        </div>
+                        <table class="pdf-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%;">ลำดับ</th>
+                                    <th style="width: 20%;">รหัสนักศึกษา</th>
+                                    <th style="width: 40%;">ชื่อ-นามสกุล</th>
+                                    <th style="width: 15%;">ไซต์</th>
+                                    <th style="width: 15%;">สถานะ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(m, idx) in roomMembers" :key="m.id">
+                                    <td style="text-align: center;">{{ idx + 1 }}</td>
+                                    <td style="text-align: center;">{{ m.student_id }}</td>
+                                    <td>{{ m.name }}</td>
+                                    <td style="text-align: center;">{{ m.shirt_size }}</td>
+                                    <td style="text-align: center;">{{ m.is_paid ? 'จ่ายแล้ว' : '-' }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="pdf-summary">
+                            <strong>สรุปยอดไซต์เสื้อ ({{ roomName }}):</strong>
+                            <span v-for="(count, size) in getRoomSizeSummary(roomMembers)" :key="size" style="margin-left: 10px;">
+                                {{ size }}: {{ count }}
+                            </span>
                         </div>
                     </div>
+                </div>
+                <div class="pdf-page">
+                    <div class="pdf-header">
+                        <h2 style="font-size: 18px; font-weight: bold;">สรุปยอดรวมทั้งหมด</h2>
+                    </div>
+                    <div v-for="(count, size) in getAllSizeSummary()" :key="size" style="font-size: 14px; margin-bottom: 5px;">
+                        <strong>{{ size }}:</strong> {{ count }} ตัว
+                    </div>
+                    <div style="margin-top: 20px; font-weight: bold; font-size: 16px;">
+                        รวมทั้งสิ้น: {{ filteredMembers.length }} ตัว
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="currentTab === 'budget'" class="animate-fade-in-up">
+               <div class="glass-card p-6 md:p-8 rounded-[2rem]">
+                   <h2 class="text-2xl md:text-3xl font-bold mb-6 text-slate-800">งบประมาณ</h2>
+                   <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                       <div class="bg-green-50 p-6 rounded-2xl text-center border border-green-100 shadow-sm"><div class="text-sm text-green-600 font-bold mb-1 uppercase tracking-wide">รายรับ</div><div class="text-3xl font-bold text-green-700">{{ formatCurrency(totalIncome) }}</div></div>
+                       <div class="bg-red-50 p-6 rounded-2xl text-center border border-red-100 shadow-sm"><div class="text-sm text-red-600 font-bold mb-1 uppercase tracking-wide">รายจ่าย</div><div class="text-3xl font-bold text-red-700">{{ formatCurrency(totalExpense) }}</div></div>
+                       <div class="bg-blue-50 p-6 rounded-2xl text-center border border-blue-100 shadow-sm"><div class="text-sm text-blue-600 font-bold mb-1 uppercase tracking-wide">คงเหลือ</div><div class="text-3xl font-bold text-blue-700">{{ formatCurrency(totalIncome - totalExpense) }}</div></div>
+                   </div>
+                   
+                   <div class="flex gap-3 mb-6" v-if="canManageBudget">
+                       <button v-if="canSetBudget" @click="openTransactionModal('set_balance')" class="flex-1 bg-teal-500 text-white py-2 px-4 rounded-xl text-xs font-bold shadow hover:bg-teal-600 transition">💰 ตั้งงบเริ่มต้น</button>
+                       <button @click="openTransactionModal('new')" class="flex-[2] btn-luxury py-3 rounded-2xl text-base font-bold shadow transition">+ บันทึกรายการใหม่</button>
+                   </div>
+                   <div v-else class="bg-slate-50 p-4 rounded-2xl text-center text-slate-500 text-sm mb-6 border border-slate-200 flex items-center justify-center gap-2">
+                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                       <span>เฉพาะเหรัญญิกและแอดมินเท่านั้นที่สามารถจัดการงบประมาณได้</span>
+                   </div>
+
+                   <div class="space-y-3">
+                       <div v-for="t in budgetList" :key="t.id" class="flex justify-between items-center bg-white/60 border border-slate-100 rounded-2xl p-5 hover:bg-white transition shadow-sm group">
+                           <div class="flex gap-4 items-center">
+                               <div :class="t.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'" class="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold shadow-inner">{{ t.type === 'income' ? '↗' : '↘' }}</div>
+                               <div>
+                                   <div class="text-lg font-bold text-slate-700">{{ t.description }}</div>
+                                   <div v-if="user.role === 'admin'" class="text-sm text-slate-400">{{ getColorName(t.color) }}</div>
+                                   
+                               </div>
+                           </div>
+                           <div class="flex gap-4 items-center">
+                               <span :class="t.type === 'income' ? 'text-green-600' : 'text-red-500'" class="font-bold text-xl">{{ formatCurrency(t.amount) }}</span>
+                               <div v-if="canManageBudget" class="flex gap-2">
+                                   <button @click="openTransactionModal('edit', t)" class="text-yellow-600 bg-yellow-100 p-2 rounded-xl hover:bg-yellow-200 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                                   <button @click="deleteTransaction(t.id)" class="text-red-600 bg-red-100 p-2 rounded-xl hover:bg-red-200 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                               </div>
+                           </div>
+                       </div>
+                   </div>
                </div>
             </div>
 
@@ -409,8 +469,7 @@
 
    <script>
         const { createApp, ref, computed, onMounted, watch } = Vue;
-        // 🟢 URL เดิมของคุณ
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJaBVcnVZizFq65mlPy2sIf5ELLqO_VLZuSph5fDz6Hev7UBvUC0ZmsCf2Pf0Tmr9h/exec'; 
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx2PLpl6UOJ3M1P2L4F8o8lROd253SrFQNlae1QYAPrTqhZtQUw6zm9bXHM4iEKC3Dt/exec'; 
 
         createApp({
             setup() {
@@ -446,7 +505,6 @@
                 const departments = {
                     orange: ['ช่างไฟฟ้า', 'อาหารและโภชนาการ', 'คณะครู/บุคลากร'], 
                     green: ['ช่างยนต์', 'เทคโนโลยีสารสนเทศ', 'คณะครู/บุคลากร'], 
-                    // ข้อที่ 3: ลบแผนกวิชาเทคโนโลยีฐานวิทยาศาสตร์ ออกจากสังกัดสีม่วง
                     purple: ['การท่องเที่ยว', 'แปรรูปอาหาร', 'ไมซ์และอีเวนท์', 'ท่องเที่ยวเชิงสุขภาพ', 'คณะครู/บุคลากร'],
                     skyblue: ['ช่างอิเล็กทรอนิกส์', 'เทคโนโลยีธุรกิจดิจิทัล', 'การโรงแรม', 'คณะครู/บุคลากร'], 
                     blue: ['ช่างก่อสร้าง', 'การตลาด', 'คณะครู/บุคลากร'], 
@@ -683,6 +741,25 @@
                         );
                     }
 
+                    res.sort((a, b) => {
+                        if (a.department !== b.department) return String(a.department).localeCompare(String(b.department), 'th');
+                        if (a.level !== b.level) return String(a.level).localeCompare(String(b.level), 'th');
+                        
+                        const roomA = isNaN(a.room) ? String(a.room) : Number(a.room);
+                        const roomB = isNaN(b.room) ? String(b.room) : Number(b.room);
+                        if (roomA !== roomB) {
+                            if (typeof roomA === 'number' && typeof roomB === 'number') return roomA - roomB;
+                            return String(roomA).localeCompare(String(roomB), undefined, {numeric: true});
+                        }
+
+                        const getLast3 = (id) => {
+                            if (!id) return 0;
+                            const clean = String(id).replace(/\D/g, ''); 
+                            return clean.length >= 3 ? parseInt(clean.slice(-3)) : parseInt(clean) || 0;
+                        };
+                        return getLast3(a.student_id) - getLast3(b.student_id);
+                    });
+
                     return res;
                 });
 
@@ -738,7 +815,12 @@
 
                 const proceedSave = async () => {
                       Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                      const payload = { ...memberForm.value, user_id: user.value.id };
+                      // ✅ แก้ไข: เพิ่มบรรทัดนี้เพื่อให้ส่งค่าสี (color) ที่มาจาก target_color ไปด้วย
+                      const payload = { 
+                          ...memberForm.value, 
+                          color: memberForm.value.target_color, // ส่งค่าสีที่เลือกในฟอร์มไปให้ Backend
+                          user_id: user.value.id 
+                      };
                       await callSheet('saveMember', payload);
                       showAddMemberModal.value = false;
                       await fetchData(false);
@@ -752,7 +834,13 @@
                 };
 
                 const openEditMember = (member) => {
-                    memberForm.value = { ...member, is_paid: !!member.is_paid, is_received: !!member.is_received }; 
+                    // ✅ แก้ไข: Map สีเดิม (color) กลับมาใส่ target_color เพื่อให้ Dropdown แสดงถูกต้อง
+                    memberForm.value = { 
+                        ...member, 
+                        target_color: member.color, // ดึงสีเดิมมาแสดง
+                        is_paid: !!member.is_paid, 
+                        is_received: !!member.is_received 
+                    }; 
                     memberForm.value.level = normalizeLevel(member.level);
                     showAddMemberModal.value = true;
                 };
@@ -782,7 +870,6 @@
                       }
                 };
 
-                // ข้อที่ 4: ฟังก์ชันลบทั้งแผนก สำหรับ Admin
                 const deleteDepartmentMembers = async (deptName) => {
                     const targetMembers = filteredMembers.value.filter(m => m.department === deptName);
                     
@@ -939,7 +1026,6 @@
 
                         if (!summary[dept]) summary[dept] = {};
                         if (!summary[dept][lvlName]) summary[dept][lvlName] = {};
-                        // ข้อที่ 1: เพิ่มขนาดไซต์ SS - 6XL ในการเก็บข้อมูลสรุป
                         if (!summary[dept][lvlName][roomName]) summary[dept][lvlName][roomName] = { SS:0, S:0, M:0, L:0, XL:0, '2XL':0, '3XL':0, '4XL':0, '5XL':0, '6XL':0, Total:0 };
 
                         if (summary[dept][lvlName][roomName][m.shirt_size] !== undefined) {
@@ -971,12 +1057,10 @@
                         for (const [lvl, rooms] of Object.entries(levels)) {
                             html += `<h4 class="font-bold text-slate-600 mt-2 ml-2 text-xs bg-slate-50 p-1 rounded inline-block border border-slate-200">${lvl}</h4>`;
                             html += `<div class="overflow-x-auto"><table class="w-full border-collapse border border-slate-200 mt-1 mb-3 text-center text-[10px] md:text-xs">`;
-                            // ข้อที่ 1: เพิ่มขนาดไซต์ SS - 6XL ในการแสดงผลตาราง (Header)
                             html += `<thead class="bg-slate-50"><tr><th class="border p-1">ห้อง</th><th class="border p-1">SS</th><th class="border p-1">S</th><th class="border p-1">M</th><th class="border p-1">L</th><th class="border p-1">XL</th><th class="border p-1">2XL</th><th class="border p-1">3XL</th><th class="border p-1">4XL</th><th class="border p-1">5XL</th><th class="border p-1">6XL</th><th class="border p-1 bg-purple-50 font-bold">รวม</th></tr></thead><tbody>`;
 
                             for (const [room, sizes] of Object.entries(rooms)) {
                                 html += `<tr><td class="border p-1 font-medium text-left pl-2 whitespace-nowrap">${room}</td>`;
-                                // ข้อที่ 1: เพิ่มขนาดไซต์ SS - 6XL ในการแสดงผลตาราง (Body)
                                 html += `<td class="border p-1">${sizes.SS}</td><td class="border p-1">${sizes.S}</td><td class="border p-1">${sizes.M}</td><td class="border p-1">${sizes.L}</td><td class="border p-1">${sizes.XL}</td>`;
                                 html += `<td class="border p-1">${sizes['2XL']}</td><td class="border p-1">${sizes['3XL']}</td><td class="border p-1">${sizes['4XL']}</td><td class="border p-1">${sizes['5XL']}</td><td class="border p-1">${sizes['6XL']}</td>`;
                                 html += `<td class="border p-1 font-bold bg-purple-50">${sizes.Total}</td></tr>`;
@@ -1063,6 +1147,55 @@
                     confirmBulkPay(allMembers, isChecked);
                 };
 
+                const getRoomSizeSummary = (members) => {
+                    const summary = {};
+                    members.forEach(m => {
+                        const size = m.shirt_size || 'Unknown';
+                        summary[size] = (summary[size] || 0) + 1;
+                    });
+                    return summary;
+                };
+
+                const getAllSizeSummary = () => {
+                    const summary = {};
+                    filteredMembers.value.forEach(m => {
+                        const size = m.shirt_size || 'Unknown';
+                        summary[size] = (summary[size] || 0) + 1;
+                    });
+                    return summary;
+                };
+
+                const exportPDF = () => {
+                    if (filteredMembers.value.length === 0) {
+                        Swal.fire('แจ้งเตือน', 'ไม่พบข้อมูลสำหรับส่งออก', 'warning');
+                        return;
+                    }
+
+                    Swal.fire({ title: 'กำลังสร้าง PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                    setTimeout(() => {
+                        const element = document.getElementById('pdf-template');
+                        const opt = {
+                            margin: 10,
+                            filename: `report_chongkho_${new Date().toISOString().slice(0,10)}.pdf`,
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2 },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                        };
+                        
+                        element.style.display = 'block'; 
+                        
+                        html2pdf().set(opt).from(element).save().then(() => {
+                            element.style.display = 'none'; 
+                            Swal.close();
+                        }).catch(err => {
+                            console.error(err);
+                            element.style.display = 'none';
+                            Swal.fire('Error', 'ไม่สามารถสร้าง PDF ได้', 'error');
+                        });
+                    }, 500);
+                };
+
                 onMounted(() => fetchData(true)); 
 
                 return {
@@ -1082,11 +1215,11 @@
                     showPassword,
                     canDeleteMembers,
                     searchQuery,
-                    deleteDepartmentMembers // export function ใหม่
+                    deleteDepartmentMembers,
+                    exportPDF, getRoomSizeSummary, getAllSizeSummary
                 };
             }
         }).mount('#app');
     </script>
 </body>
 </html>
-
